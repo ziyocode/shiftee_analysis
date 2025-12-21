@@ -1,392 +1,282 @@
-# Shiftee 급여 보고서 자동화 도구
+# Shiftee 초과근로 적정성 분석 도구
 
-Shiftee.io에서 데이터를 다운로드하고 Excel 보고서를 자동으로 생성하는 도구입니다.
+Shiftee.io 근무 데이터를 분석하여 직원들의 초과근로 적정성을 자동으로 판정하는 Python CLI 도구입니다.
 
 ## 주요 기능
 
-- 🔐 Shiftee.io 자동 로그인
-- 📥 REALTIME-REPORT 및 PAYROLL 파일 자동 다운로드
-- 📊 Excel 템플릿 기반 보고서 자동 생성
-- 📋 공지용 시트 준비 (수동 작업 최소화)
-- ✅ 생성된 보고서 자동 검증
-- 🔄 Excel 수식 자동 재계산 설정
+- 📊 **자동 적정성 판정**: Excel 데이터 기반으로 법정 초과근로 기준 대비 위험도 자동 계산
+- 🔥 **법규 위반 감지**: 52시간 법규 기준 초과자 실시간 감지
+- 📥 **Shiftee 자동 다운로드**: 리포트 및 급여정산 데이터 자동 다운로드 (Playwright)
+- 💬 **카카오톡 알림**: 위험 직원 목록 자동 전송 (선택 사항)
+- 🔄 **교대제 자동 제외**: 교대제 직원은 분석 대상에서 자동 제외
+- 📈 **Excel 리포트 생성**: 색상 강조 및 수식 포함 분석 리포트
 
-## 설치
-
-### 필수 요구사항
+## 필수 요구사항
 
 - Python 3.10 이상
 - pip (Python 패키지 관리자)
 
-### 의존성 설치
+## 설치
+
+### 1. 의존성 설치
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Playwright 브라우저 설치
+### 2. Playwright 브라우저 설치
 
 ```bash
 playwright install chromium
 ```
 
-## 설정
+### 3. 환경 변수 설정
 
-### 1. 환경 변수 설정
-
-프로젝트 루트 디렉터리에 `.env` 파일을 생성하거나 `config/settings.toml` 파일을 사용합니다:
+`.env` 파일을 프로젝트 루트에 생성:
 
 ```bash
-# .env 파일
 SHIFTEE_ID=your-email@example.com
 SHIFTEE_PASSWORD=your-password
 SHIFTEE_HEADLESS=true
 ```
 
-또는
+또는 `config/settings.toml` 사용:
 
 ```toml
-# config/settings.toml
 SHIFTEE_ID = "your-email@example.com"
 SHIFTEE_PASSWORD = "your-password"
 SHIFTEE_HEADLESS = true
 ```
 
-### 2. 템플릿 파일 준비
-
-Excel 템플릿 파일을 준비합니다. 템플릿은 다음 시트를 포함해야 합니다:
-
-- `shiftee데이타`: REALTIME-REPORT 데이터용
-- `shiftee데이타2`: PAYROLL 데이터용
-- `계산`: 계산 수식 시트
-- `정리`: 정리 수식 시트
-- `공지용`: 공지용 시트 (수동 작성)
-
 ## 사용법
 
-### 기본 명령어 구조
+### 기본 실행 (데이터 파일이 있는 경우)
 
 ```bash
-python scripts/calculate_risk_direct.py [명령어] [옵션]
+python scripts/calculate_risk_direct.py
 ```
 
-### 1. 전체 워크플로우 실행
+- 기본 데이터: `data/shiftee_data1.xlsx`, `data/shiftee_data2.xlsx`
+- 출력: `output/report_YYYYMMDD.xlsx`
+- 기간: 이번 달 1일 ~ 전일(어제)
 
-다운로드 + 보고서 생성을 한 번에 실행합니다:
+### 다운로드 + 분석 (한 번에 실행)
 
 ```bash
-python scripts/calculate_risk_direct.py full --template template.xlsx
+# 기본 날짜 (이번 달 1일 ~ 어제)
+python scripts/calculate_risk_direct.py --download
+
+# 특정 기간 지정
+python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
 ```
 
-#### 옵션
-
-- `--template TEMPLATE`: 템플릿 Excel 파일 경로 (필수)
-- `--output OUTPUT`: 출력 파일 경로 (기본: `output/report_YYYYMMDD_HHMMSS.xlsx`)
-- `--data-dir DATA_DIR`: 다운로드 데이터 디렉터리 (기본: `data`)
-- `--skip-download`: 다운로드 건너뛰기 (기존 파일 사용)
-- `--overwrite`: 기존 출력 파일 덮어쓰기
-- `--no-validate`: 검증 단계 건너뛰기
-- `--no-headless`: 브라우저 표시 (디버깅용)
-
-#### 예시
+### 카카오톡 알림
 
 ```bash
-# 전체 워크플로우 실행 (다운로드 + 보고서 생성)
-python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx
+# 위험 직원 목록 전송
+python scripts/calculate_risk_direct.py --send-kakao
 
-# 이미 다운로드된 파일로 보고서 생성
-python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --skip-download
+# 요약만 전송
+python scripts/calculate_risk_direct.py --kakao-summary
 
-# 출력 경로 지정 및 덮어쓰기
-python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --output report.xlsx --overwrite
-
-# 브라우저 표시 (디버깅)
-python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --no-headless
+# 다운로드 + 분석 + 카카오톡 전송 (한 번에)
+python scripts/calculate_risk_direct.py --download --send-kakao
 ```
 
-### 2. 다운로드만 수행
+### 주요 옵션
 
-Shiftee에서 데이터만 다운로드합니다:
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `--start YYYY-MM-DD` | 분석 시작 날짜 | 이번 달 1일 |
+| `--end YYYY-MM-DD` | 분석 종료 날짜 | 전일(어제) |
+| `--download` | Shiftee에서 데이터 자동 다운로드 | - |
+| `--output FILE` | 출력 파일 경로 (.xlsx, .csv) | `output/report_YYYYMMDD.xlsx` |
+| `--data1 FILE` | shiftee_data1.xlsx 경로 | `data/shiftee_data1.xlsx` |
+| `--data2 FILE` | shiftee_data2.xlsx 경로 | `data/shiftee_data2.xlsx` |
+| `--send-kakao` | 위험 직원 목록 카카오톡 전송 | - |
+| `--kakao-summary` | 요약만 카카오톡 전송 | - |
+
+### 사용 예시
 
 ```bash
-python scripts/calculate_risk_direct.py download
+# 1. 11월 데이터 다운로드 및 분석
+python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
+
+# 2. 기존 파일로 분석만 수행
+python scripts/calculate_risk_direct.py --start 2025-11-01 --end 2025-11-30
+
+# 3. 특정 파일 지정 및 CSV 출력
+python scripts/calculate_risk_direct.py \
+  --data1 data/custom_report.xlsx \
+  --data2 data/custom_payroll.xlsx \
+  --output report_11월.csv
+
+# 4. 분석 후 카카오톡 알림
+python scripts/calculate_risk_direct.py --send-kakao
+
+# 5. 다운로드 + 분석 + 카카오톡 (완전 자동화)
+python scripts/calculate_risk_direct.py --download --start 2025-12-01 --end 2025-12-15 --send-kakao
 ```
 
-#### 옵션
+## 출력 결과
 
-- `--data-dir DATA_DIR`: 다운로드 데이터 디렉터리 (기본: `data`)
-- `--no-headless`: 브라우저 표시 (디버깅용)
+### 콘솔 출력
 
-#### 예시
+```
+================================================================================
+📊 적정성 분석 결과
+================================================================================
 
-```bash
-# 기본 다운로드
-python scripts/calculate_risk_direct.py download
+총 직원: 46명
+  - ✅ 정상: 43명 (93.5%)
+  - ⚠️  위험: 3명 (6.5%)
+  - 🚨 법규기준초과: 0명 (0.0%)
 
-# 브라우저 표시하며 다운로드
-python scripts/calculate_risk_direct.py download --no-headless
+================================================================================
+⚠️  위험 직원 목록
+================================================================================
+ 직원   본조직      실제초과근로(h)  법정기준(h)  적정성  법규초과
+이상훈 뱅킹IS팀     45.383333       42.857143    위험
+박근혁 뱅킹IS팀     44.433333       42.857143    위험
+이준우 뱅킹IS팀     44.116667       42.857143    위험
 ```
 
-### 3. 보고서 생성만 수행
+### Excel 리포트 (report_YYYYMMDD.xlsx)
 
-이미 다운로드된 파일로 보고서를 생성합니다:
-
-```bash
-python scripts/calculate_risk_direct.py generate --template template.xlsx
-```
-
-#### 옵션
-
-- `--template TEMPLATE`: 템플릿 Excel 파일 경로 (필수)
-- `--realtime REALTIME`: REALTIME-REPORT 파일 경로 (자동 검색 시 생략 가능)
-- `--payroll PAYROLL`: PAYROLL 파일 경로 (자동 검색 시 생략 가능)
-- `--output OUTPUT`: 출력 파일 경로 (기본: `output/report_YYYYMMDD_HHMMSS.xlsx`)
-- `--data-dir DATA_DIR`: 데이터 디렉터리 (자동 검색 시 사용, 기본: `data`)
-- `--overwrite`: 기존 출력 파일 덮어쓰기
-- `--no-validate`: 검증 단계 건너뛰기
-
-#### 예시
-
-```bash
-# 자동 파일 검색으로 보고서 생성
-python scripts/calculate_risk_direct.py generate --template ~/Downloads/template.xlsx
-
-# 파일 경로 직접 지정
-python scripts/calculate_risk_direct.py generate \
-  --template ~/Downloads/template.xlsx \
-  --realtime data/SHIFTEE-REALTIME-REPORT-20251201-20251231.xlsx \
-  --payroll data/SHIFTEE-PAYROLL-BY-SHIFT-AND-ATTENDANCE-20251201-20251212.xlsx \
-  --output output/report.xlsx
-
-# 검증 없이 생성
-python scripts/calculate_risk_direct.py generate --template ~/Downloads/template.xlsx --no-validate
-```
-
-### 4. 보고서 검증
-
-생성된 보고서를 검증합니다:
-
-```bash
-python scripts/calculate_risk_direct.py validate output/report.xlsx
-```
-
-#### 옵션
-
-- `--validate-notice`: 공지용 시트도 검증 (기본: 건너뛰기)
-
-#### 예시
-
-```bash
-# 기본 검증
-python scripts/calculate_risk_direct.py validate output/report.xlsx
-
-# 공지용 시트도 검증
-python scripts/calculate_risk_direct.py validate output/report.xlsx --validate-notice
-```
-
-### 공통 옵션
-
-모든 명령어에서 사용 가능한 옵션:
-
-- `-v, --verbose`: 상세 로깅 활성화
-- `-q, --quiet`: 최소 로깅 (경고만 표시)
-- `--config CONFIG`: 설정 파일 경로 (기본: `.env`)
-- `-h, --help`: 도움말 표시
-
-#### 예시
-
-```bash
-# 상세 로깅으로 실행
-python scripts/calculate_risk_direct.py -v generate --template ~/Downloads/template.xlsx
-
-# 최소 로깅으로 실행
-python scripts/calculate_risk_direct.py -q download
-```
+- **헤더 행**: 회색 배경, 굵은 글씨
+- **위험 직원**: 빨간색 배경 (#FFE6E6)
+- **법규초과**: 주황색 배경 (#FFE6CC)
+- **수식 포함**: 초과근로시간, 적정성 판단 등
 
 ## 프로젝트 구조
 
 ```
 shiftee_analysis/
-├── shiftee_analysis.py          # 메인 CLI 진입점
-├── src/
-│   └── shiftee/
-│       ├── __init__.py
-│       ├── __main__.py           # 모듈 직접 실행 진입점
-│       ├── cli.py                # CLI 로직
-│       ├── workflow.py           # 워크플로우 통합
-│       ├── settings.py           # 설정 관리
-│       ├── login.py              # Shiftee 로그인
-│       ├── attendance.py         # 파일 다운로드
-│       ├── excel_processor.py    # Excel 처리
-│       ├── template.py           # 템플릿 관리
-│       ├── data_mapper.py        # 데이터 매핑
-│       ├── report_generator.py   # 보고서 생성
-│       └── validator.py          # 보고서 검증
+├── scripts/
+│   ├── calculate_risk_direct.py    # 메인 분석 스크립트
+│   ├── compare_outputs.py          # 검증용 비교 스크립트
+│   ├── debug_employee.py           # 직원별 디버깅 도구
+│   └── verify_excel_compatibility.py
+├── kakao_send/                      # 카카오톡 API 통합
+│   ├── __init__.py
+│   ├── kakao_get_token.py          # 토큰 발급
+│   ├── kakao_refresh_token.py      # 토큰 갱신
+│   ├── message_formatter.py        # 메시지 포맷팅
+│   └── README.md                   # 카카오톡 설정 가이드
+├── src/shiftee/                     # Shiftee 자동화 모듈
+│   ├── settings.py                 # 설정 관리
+│   ├── login.py                    # 로그인 자동화
+│   └── attendance.py               # 데이터 다운로드
+├── docs/
+│   ├── CLI_USAGE.md                # 📖 상세 CLI 사용 가이드
+│   ├── calculation_formulas.md     # 계산 수식 설명
+│   └── COMPLETION_SUMMARY.md       # 구현 완료 요약
 ├── config/
-│   └── settings.example.toml     # 설정 예시 파일
-├── data/                         # 다운로드된 데이터 저장
-├── output/                       # 생성된 보고서 저장
-├── docs/                         # 문서
-│   └── To_do_list.md
-├── .env                          # 환경 변수 (gitignore)
-└── requirements.txt              # Python 의존성
+│   └── settings.example.toml       # 설정 예시
+├── data/                            # 다운로드 데이터 (gitignore)
+├── output/                          # 분석 결과 (gitignore)
+├── .env                             # 환경 변수 (gitignore)
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
-## 워크플로우
+## 계산 로직
 
-### 전체 프로세스
+### 핵심 수식
 
-```
-1. Shiftee 로그인
-   ↓
-2. REALTIME-REPORT 다운로드
-   ↓
-3. PAYROLL 다운로드
-   ↓
-4. 템플릿 Excel 로드
-   ↓
-5. 템플릿 인스턴스 생성
-   ↓
-6. shiftee데이타 시트에 REALTIME 데이터 매핑
-   ↓
-7. shiftee데이타2 시트에 PAYROLL 데이터 매핑
-   ↓
-8. Excel 수식 재계산 활성화
-   ↓
-9. 파일 저장
-   ↓
-10. 보고서 검증
-   ↓
-11. 완료
-```
+1. **법정근로시간**: `소정근로시간 - 유급휴가시간`
+2. **실제 초과근로시간**: `실제 근로시간 - 법정근로시간`
+3. **실제 초과근로(조기출근 제외)**: Excel SUMPRODUCT 로직 구현
+4. **법정 초과 기준**: `(월 마지막 날 / 7) × 10 시간`
+5. **적정성 판단**: `실제 초과근로(조기출근 제외) > 법정 초과 기준` → "위험"
 
-### 공지용 시트 생성
+### 월별 기준값
 
-생성된 보고서에서 공지용 시트를 만드는 방법:
+| 월 | 마지막 날 | 법정 초과 | 법규 위반 |
+|----|-----------|-----------|-----------|
+| 11월 | 30일 | 42.86시간 | 51.43시간 |
+| 12월 | 31일 | 44.29시간 | 53.14시간 |
+| 2월 (평년) | 28일 | 40.00시간 | 48.00시간 |
+| 2월 (윤년) | 29일 | 41.43시간 | 49.71시간 |
 
-#### 자동 생성 (Excel에서 수식으로)
+### 제외 대상
 
-생성된 보고서를 Excel에서 열면:
-1. **수식 자동 재계산**: `계산` 및 `정리` 시트의 모든 수식이 자동으로 계산됩니다
-2. **공지용 시트 확인**: `정리` 시트의 결과를 기반으로 위험/법기준초과 대상자를 확인할 수 있습니다
+- **교대제 직원**: 본직무가 "교대제"인 직원은 자동으로 분석에서 제외됩니다
+- **제외 이유**: 야간근무 등 특수 근무 패턴으로 인해 일반 기준 적용 부적합
 
-#### 수동 작성 (필요 시)
+## 카카오톡 설정
 
-필요에 따라 공지용 시트를 수동으로 작성할 수 있습니다:
+카카오톡 메시지 전송 기능 사용 시 추가 설정이 필요합니다:
 
-1. **Excel에서 보고서 열기**
-2. **정리 시트로 이동**
-3. **필터 적용**:
-   - "적정성" 컬럼에서 "위험" 또는 "법기준초과" 선택
-4. **공지용 시트에 복사**:
-   - 필터링된 행을 선택하여 복사
-   - `공지용` 시트에 붙여넣기
+1. **카카오 개발자 앱 생성**: [developers.kakao.com](https://developers.kakao.com)
+2. **REST API 키 발급**
+3. **토큰 발급**: `kakao_send/README.md` 참고
+4. **토큰 파일 생성**: `kakao_send/kakao_token.json`
 
-#### VBA 매크로 활용 (고급)
+자세한 내용은 `kakao_send/README.md`를 참고하세요.
 
-반복 작업을 자동화하려면 Excel VBA 매크로를 작성할 수 있습니다:
+## 데이터 파일 형식
 
-```vba
-Sub GenerateNotice()
-    ' 정리 시트에서 위험/법기준초과 대상자를 공지용 시트로 복사
-    Dim wsSource As Worksheet
-    Dim wsTarget As Worksheet
+### shiftee_data1.xlsx (REALTIME-REPORT)
 
-    Set wsSource = ThisWorkbook.Sheets("정리")
-    Set wsTarget = ThisWorkbook.Sheets("공지용")
+- **시트명**: `YYYYMMDD-YYYYMMDD` 형식 (예: `20251101-20251130`)
+- **필수 컬럼**: 직원, 본조직, 본직무, 소정근로시간, 승인된 근로시간, 실제 근로시간, 유급휴가시간, 결근, 퇴근누락
 
-    ' 필터링 및 복사 로직
-    ' (상세 구현은 프로젝트 요구사항에 따라 작성)
-End Sub
-```
+### shiftee_data2.xlsx (PAYROLL)
 
-#### 주요 확인 항목
-
-공지용 시트 생성 시 다음을 확인하세요:
-
-- ✅ **소정근로시간**: 정상 범위 내인지 확인
-- ✅ **초과근로시간**: 52시간 법규 위반 여부
-- ✅ **적정성 판단**: "위험" 또는 "법기준초과" 대상자
-- ✅ **월말까지 가능시간**: 음수인 경우 이미 초과 상태
-
-### 수동 작업 필요 사항
-
-생성된 보고서는 다음 작업이 필요합니다:
-
-1. **Excel에서 파일 열기**: 수식 자동 재계산 (자동)
-2. **공지용 시트 작성**: 위 "공지용 시트 생성" 섹션 참고 (선택)
-
-## 검증 항목
-
-보고서 검증 시 다음 항목을 확인합니다:
-
-- ✅ 필수 시트 존재 확인
-- ✅ 데이터 시트 최소 행 수 확인
-- ✅ 계산 시트 수식 개수 확인
-- ⚠️ 공지용 시트 (선택적 검증)
+- **헤더 행**: 3행
+- **필수 컬럼**: 이름, 근무일정 시작시간, 퇴근시간, (실제) 총 휴게시간
 
 ## 문제 해결
 
-### 로그인 실패
-
-- `.env` 파일에 올바른 이메일과 비밀번호가 설정되어 있는지 확인
-- `--no-headless` 옵션으로 브라우저를 표시하여 로그인 과정 확인
-
-### 파일 다운로드 실패
-
-- 네트워크 연결 확인
-- Shiftee.io 웹사이트 접속 가능 여부 확인
-- `--no-headless` 옵션으로 다운로드 과정 확인
-
-### 보고서 생성 실패
-
-- 템플릿 파일 경로 확인
-- REALTIME-REPORT 및 PAYROLL 파일 존재 확인
-- `-v` 옵션으로 상세 로그 확인
-
-### 검증 실패
-
-- 데이터 시트에 최소 1행 이상의 데이터가 있는지 확인
-- 계산 시트에 수식이 있는지 확인
-- 템플릿 구조가 올바른지 확인
-
-## 개발자 정보
-
-### 모듈 직접 실행
+### 파일을 찾을 수 없음
 
 ```bash
-python -m src.shiftee full --template template.xlsx
-python -m src.shiftee download
-python -m src.shiftee generate --template template.xlsx
-python -m src.shiftee validate output/report.xlsx
+❌ 오류: FileNotFoundError: data/shiftee_data1.xlsx
+
+# 해결 방법 1: 자동 다운로드
+python scripts/calculate_risk_direct.py --download
+
+# 해결 방법 2: 파일 경로 직접 지정
+python scripts/calculate_risk_direct.py --data1 path/to/file1.xlsx --data2 path/to/file2.xlsx
 ```
 
-### Python API 사용
+### Playwright 브라우저 없음
 
-```python
-from src.shiftee.workflow import ShifteeWorkflow, WorkflowConfig
-from src.shiftee.settings import ShifteeSettings
+```bash
+❌ 오류: Playwright browser not found
 
-# 설정
-settings = ShifteeSettings()
-config = WorkflowConfig(
-    template_path="template.xlsx",
-    output_path="output/report.xlsx",
-    skip_download=False,
-    validate=True,
-    overwrite=True,
-)
-
-# 워크플로우 실행
-import asyncio
-workflow = ShifteeWorkflow(settings=settings, config=config)
-result = asyncio.run(workflow.run_full_workflow())
-
-if result["success"]:
-    print(f"보고서 생성 완료: {result['generate']['output_path']}")
-else:
-    print(f"실패: {result['errors']}")
+# 해결 방법
+playwright install chromium
 ```
+
+### 로그인 실패
+
+```bash
+❌ 오류: Login failed
+
+# 해결 방법
+# 1. .env 파일 확인 (SHIFTEE_ID, SHIFTEE_PASSWORD)
+# 2. 브라우저 표시 모드로 디버깅
+SHIFTEE_HEADLESS=false python scripts/calculate_risk_direct.py --download
+```
+
+### 시트를 찾을 수 없음
+
+```bash
+❌ 오류: Sheet '20251101-20251130' not found
+
+# 해결 방법: Excel 파일의 시트명 확인
+python -c "import openpyxl; wb = openpyxl.load_workbook('data/shiftee_data1.xlsx'); print(wb.sheetnames)"
+```
+
+## 참고 문서
+
+- **📖 상세 CLI 사용법**: [`docs/CLI_USAGE.md`](docs/CLI_USAGE.md)
+- **🧮 계산 수식**: [`docs/calculation_formulas.md`](docs/calculation_formulas.md)
+- **✅ 완료 요약**: [`docs/COMPLETION_SUMMARY.md`](docs/COMPLETION_SUMMARY.md)
+- **💬 카카오톡 설정**: [`kakao_send/README.md`](kakao_send/README.md)
 
 ## 라이선스
 
