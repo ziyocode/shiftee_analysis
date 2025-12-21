@@ -67,7 +67,7 @@ Excel 템플릿 파일을 준비합니다. 템플릿은 다음 시트를 포함�
 ### 기본 명령어 구조
 
 ```bash
-python shiftee_analysis.py [명령어] [옵션]
+python scripts/calculate_risk_direct.py [명령어] [옵션]
 ```
 
 ### 1. 전체 워크플로우 실행
@@ -75,7 +75,7 @@ python shiftee_analysis.py [명령어] [옵션]
 다운로드 + 보고서 생성을 한 번에 실행합니다:
 
 ```bash
-python shiftee_analysis.py full --template template.xlsx
+python scripts/calculate_risk_direct.py full --template template.xlsx
 ```
 
 #### 옵션
@@ -92,16 +92,16 @@ python shiftee_analysis.py full --template template.xlsx
 
 ```bash
 # 전체 워크플로우 실행 (다운로드 + 보고서 생성)
-python shiftee_analysis.py full --template ~/Downloads/template.xlsx
+python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx
 
 # 이미 다운로드된 파일로 보고서 생성
-python shiftee_analysis.py full --template ~/Downloads/template.xlsx --skip-download
+python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --skip-download
 
 # 출력 경로 지정 및 덮어쓰기
-python shiftee_analysis.py full --template ~/Downloads/template.xlsx --output report.xlsx --overwrite
+python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --output report.xlsx --overwrite
 
 # 브라우저 표시 (디버깅)
-python shiftee_analysis.py full --template ~/Downloads/template.xlsx --no-headless
+python scripts/calculate_risk_direct.py full --template ~/Downloads/template.xlsx --no-headless
 ```
 
 ### 2. 다운로드만 수행
@@ -109,7 +109,7 @@ python shiftee_analysis.py full --template ~/Downloads/template.xlsx --no-headle
 Shiftee에서 데이터만 다운로드합니다:
 
 ```bash
-python shiftee_analysis.py download
+python scripts/calculate_risk_direct.py download
 ```
 
 #### 옵션
@@ -121,10 +121,10 @@ python shiftee_analysis.py download
 
 ```bash
 # 기본 다운로드
-python shiftee_analysis.py download
+python scripts/calculate_risk_direct.py download
 
 # 브라우저 표시하며 다운로드
-python shiftee_analysis.py download --no-headless
+python scripts/calculate_risk_direct.py download --no-headless
 ```
 
 ### 3. 보고서 생성만 수행
@@ -132,7 +132,7 @@ python shiftee_analysis.py download --no-headless
 이미 다운로드된 파일로 보고서를 생성합니다:
 
 ```bash
-python shiftee_analysis.py generate --template template.xlsx
+python scripts/calculate_risk_direct.py generate --template template.xlsx
 ```
 
 #### 옵션
@@ -149,17 +149,17 @@ python shiftee_analysis.py generate --template template.xlsx
 
 ```bash
 # 자동 파일 검색으로 보고서 생성
-python shiftee_analysis.py generate --template ~/Downloads/template.xlsx
+python scripts/calculate_risk_direct.py generate --template ~/Downloads/template.xlsx
 
 # 파일 경로 직접 지정
-python shiftee_analysis.py generate \
+python scripts/calculate_risk_direct.py generate \
   --template ~/Downloads/template.xlsx \
   --realtime data/SHIFTEE-REALTIME-REPORT-20251201-20251231.xlsx \
   --payroll data/SHIFTEE-PAYROLL-BY-SHIFT-AND-ATTENDANCE-20251201-20251212.xlsx \
   --output output/report.xlsx
 
 # 검증 없이 생성
-python shiftee_analysis.py generate --template ~/Downloads/template.xlsx --no-validate
+python scripts/calculate_risk_direct.py generate --template ~/Downloads/template.xlsx --no-validate
 ```
 
 ### 4. 보고서 검증
@@ -167,7 +167,7 @@ python shiftee_analysis.py generate --template ~/Downloads/template.xlsx --no-va
 생성된 보고서를 검증합니다:
 
 ```bash
-python shiftee_analysis.py validate output/report.xlsx
+python scripts/calculate_risk_direct.py validate output/report.xlsx
 ```
 
 #### 옵션
@@ -178,10 +178,10 @@ python shiftee_analysis.py validate output/report.xlsx
 
 ```bash
 # 기본 검증
-python shiftee_analysis.py validate output/report.xlsx
+python scripts/calculate_risk_direct.py validate output/report.xlsx
 
 # 공지용 시트도 검증
-python shiftee_analysis.py validate output/report.xlsx --validate-notice
+python scripts/calculate_risk_direct.py validate output/report.xlsx --validate-notice
 ```
 
 ### 공통 옵션
@@ -197,10 +197,10 @@ python shiftee_analysis.py validate output/report.xlsx --validate-notice
 
 ```bash
 # 상세 로깅으로 실행
-python shiftee_analysis.py -v generate --template ~/Downloads/template.xlsx
+python scripts/calculate_risk_direct.py -v generate --template ~/Downloads/template.xlsx
 
 # 최소 로깅으로 실행
-python shiftee_analysis.py -q download
+python scripts/calculate_risk_direct.py -q download
 ```
 
 ## 프로젝트 구조

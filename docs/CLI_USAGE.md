@@ -2,7 +2,7 @@
 
 ## 개요
 
-`shiftee_analysis.py`는 Shiftee 데이터를 분석하여 직원들의 초과근로 적정성을 판정하는 CLI 도구입니다.
+`scripts/calculate_risk_direct.py`는 Shiftee 데이터를 분석하여 직원들의 초과근로 적정성을 판정하는 CLI 도구입니다.
 
 ## 설치
 
@@ -25,23 +25,8 @@ SHIFTEE_HEADLESS=true
 
 ## 실행 방법
 
-### 1. 직접 Python 파일 실행
-
 ```bash
-python shiftee_analysis.py [옵션]
-```
-
-### 2. Python 모듈로 실행
-
-```bash
-python -m shiftee_analysis [옵션]
-```
-
-### 3. 실행 권한 부여 후 직접 실행 (Unix/Linux/Mac)
-
-```bash
-chmod +x shiftee_analysis.py
-./shiftee_analysis.py [옵션]
+python scripts/calculate_risk_direct.py [옵션]
 ```
 
 ## 옵션
@@ -49,12 +34,10 @@ chmod +x shiftee_analysis.py
 ### 날짜 범위 옵션
 
 - `--start YYYY-MM-DD`: 분석 시작 날짜 (기본: 현재 월 1일)
-- `--end YYYY-MM-DD`: 분석 종료 날짜 (기본: 가장 최근 평일, 주말 제외)
+- `--end YYYY-MM-DD`: 분석 종료 날짜 (기본: 전일(어제))
 
-**기본 동작 예시:**
-- 오늘이 월~금요일: `--end`는 오늘 날짜
-- 오늘이 토요일: `--end`는 어제(금요일)
-- 오늘이 일요일: `--end`는 그저께(금요일)
+**기본 동작:**
+- `--end` 미지정 시 무조건 어제 날짜 사용 (요일 무관)
 
 ### 기타 옵션
 
@@ -69,17 +52,17 @@ chmod +x shiftee_analysis.py
 ### 1. 가장 간단한 실행 (모든 기본값 사용)
 
 ```bash
-python shiftee_analysis.py
+python scripts/calculate_risk_direct.py
 ```
 
 - 자동으로 `output/report_YYYYMMDD.xlsx` 파일이 생성됩니다
 - 시작 날짜: 이번 달 1일
-- 종료 날짜: 가장 최근 평일 (오늘이 주말이면 지난 금요일)
+- 종료 날짜: 전일(어제)
 
 ### 2. 특정 기간 분석
 
 ```bash
-python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30
+python scripts/calculate_risk_direct.py --start 2025-11-01 --end 2025-11-30
 ```
 
 출력:
@@ -105,7 +88,7 @@ python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30
 ### 3. 커스텀 파일명으로 Excel 리포트 생성
 
 ```bash
-python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30 --output report_11월.xlsx
+python scripts/calculate_risk_direct.py --start 2025-11-01 --end 2025-11-30 --output report_11월.xlsx
 ```
 
 생성되는 Excel 파일:
@@ -118,20 +101,20 @@ python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30 --output report_1
 ### 4. CSV로 저장
 
 ```bash
-python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30 --output report.csv
+python scripts/calculate_risk_direct.py --start 2025-11-01 --end 2025-11-30 --output report.csv
 ```
 
 ### 5. 다운로드부터 한 번에 실행
 
 **기본 날짜로 다운로드:**
 ```bash
-python shiftee_analysis.py --download
+python scripts/calculate_risk_direct.py --download
 ```
-- 이번 달 1일 ~ 가장 최근 평일 데이터를 자동 다운로드
+- 이번 달 1일 ~ 전일(어제) 데이터를 자동 다운로드
 
 **특정 기간 다운로드:**
 ```bash
-python shiftee_analysis.py --download --start 2025-11-01 --end 2025-11-30
+python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
 ```
 
 이 명령어는:
@@ -143,7 +126,7 @@ python shiftee_analysis.py --download --start 2025-11-01 --end 2025-11-30
 ### 6. 특정 데이터 파일 지정
 
 ```bash
-python shiftee_analysis.py \
+python scripts/calculate_risk_direct.py \
   --data1 data/custom_realtime.xlsx \
   --data2 data/custom_payroll.xlsx \
   --start 2025-11-01 \
@@ -155,13 +138,13 @@ python shiftee_analysis.py \
 
 ```bash
 # 11월 분석
-python shiftee_analysis.py --start 2025-11-01 --end 2025-11-30 --output report_11월.xlsx
+python scripts/calculate_risk_direct.py --start 2025-11-01 --end 2025-11-30 --output report_11월.xlsx
 
 # 12월 분석
-python shiftee_analysis.py --start 2025-12-01 --end 2025-12-31 --output report_12월.xlsx
+python scripts/calculate_risk_direct.py --start 2025-12-01 --end 2025-12-31 --output report_12월.xlsx
 
 # 특정 기간 분석
-python shiftee_analysis.py --start 2025-12-01 --end 2025-12-14 --output report_12월_중간.xlsx
+python scripts/calculate_risk_direct.py --start 2025-12-01 --end 2025-12-14 --output report_12월_중간.xlsx
 ```
 
 ## 출력 파일 구조
@@ -266,7 +249,7 @@ python -c "import sys; print('\n'.join(sys.path))"
 
 # scripts 디렉터리가 없다면 PYTHONPATH 설정
 export PYTHONPATH="${PYTHONPATH}:$(pwd)/scripts"
-python shiftee_analysis.py --help
+python scripts/calculate_risk_direct.py --help
 ```
 
 ### 2. "FileNotFoundError: data/shiftee_data1.xlsx"
@@ -275,10 +258,10 @@ python shiftee_analysis.py --help
 
 ```bash
 # 옵션 1: --download로 자동 다운로드
-python shiftee_analysis.py --download --start 2025-11-01 --end 2025-11-30
+python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
 
 # 옵션 2: 파일 경로 직접 지정
-python shiftee_analysis.py --data1 path/to/file1.xlsx --data2 path/to/file2.xlsx --start 2025-11-01 --end 2025-11-30
+python scripts/calculate_risk_direct.py --data1 path/to/file1.xlsx --data2 path/to/file2.xlsx --start 2025-11-01 --end 2025-11-30
 ```
 
 ### 3. "Sheet '20251101-20251130' not found"
@@ -303,10 +286,10 @@ python scripts/compare_outputs.py
 
 ```bash
 # 브라우저 표시 모드로 실행 (디버깅)
-SHIFTEE_HEADLESS=false python shiftee_analysis.py --download --start 2025-11-01 --end 2025-11-30
+SHIFTEE_HEADLESS=false python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
 
 # 또는 환경 변수 없이
-python shiftee_analysis.py --download --start 2025-11-01 --end 2025-11-30
+python scripts/calculate_risk_direct.py --download --start 2025-11-01 --end 2025-11-30
 # 그런 다음 .env 파일 확인
 ```
 
@@ -323,7 +306,7 @@ START_DATE="${MONTH}-01"
 END_DATE="${MONTH}-30"
 OUTPUT="reports/report_${MONTH}.xlsx"
 
-python shiftee_analysis.py \
+python scripts/calculate_risk_direct.py \
   --download \
   --start $START_DATE \
   --end $END_DATE \
@@ -337,7 +320,7 @@ echo "Report generated: $OUTPUT"
 ```bash
 # 각 부서별 데이터 파일이 있는 경우
 for dept in 뱅킹IS팀 뱅킹인프라본부 디지털금융부; do
-  python shiftee_analysis.py \
+  python scripts/calculate_risk_direct.py \
     --data1 data/${dept}_data1.xlsx \
     --data2 data/${dept}_data2.xlsx \
     --start 2025-11-01 \

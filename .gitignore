@@ -103,7 +103,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-#.env
+.env
 .env.*
 !.env.example
 .venv
@@ -184,7 +184,7 @@ config/settings.toml
 config/*.toml
 !config/*.example.toml
 !config/*.sample.toml
-#kakao_send/kakao_token.json
+kakao_send/kakao_token.json
 *.token
 *.key
 *.pem
@@ -199,8 +199,3 @@ tmp/
 # Project-specific: Playwright browsers (if using Playwright)
 .playwright/
 playwright/.auth/
-
-# __init__ __main__
-__init__.py
-__main__.py
-test/
