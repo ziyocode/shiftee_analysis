@@ -118,6 +118,27 @@ python scripts/calculate_risk_direct.py --send-kakao
 python scripts/calculate_risk_direct.py --download --start 2025-12-01 --end 2025-12-15 --send-kakao
 ```
 
+### Shell 스크립트 자동화
+
+더 간편한 실행을 위한 shell 스크립트를 제공합니다:
+
+```bash
+# 기본 실행 (이번 달 1일 ~ 어제)
+./scripts/auto_analyze_and_notify.sh
+
+# 특정 기간 지정
+./scripts/auto_analyze_and_notify.sh --start 2025-12-01 --end 2025-12-15
+
+# cron 작업 등록 (매일 오전 9시)
+0 9 * * * cd /path/to/shiftee_analysis && ./scripts/auto_analyze_and_notify.sh
+```
+
+**스크립트 기능:**
+- ✅ 프로젝트 루트 자동 이동
+- ✅ 가상환경 자동 활성화
+- ✅ 오류 발생 시 즉시 중단
+- ✅ 성공/실패 상태 출력
+
 ## 출력 결과
 
 ### 콘솔 출력
