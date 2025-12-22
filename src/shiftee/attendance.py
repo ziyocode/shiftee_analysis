@@ -68,6 +68,10 @@ async def download_report_current_month(
         logger.debug("Clicking download button")
         await download_button.click()
 
+        # Wait for UI to respond (important for macOS automation environment)
+        await page.wait_for_timeout(2000)
+        logger.debug("Waited 2s after download button click")
+
         # Wait for modal to appear
         logger.debug("Waiting for export modal")
         modal = page.locator("sft-basic-export-modal").first
@@ -182,6 +186,10 @@ async def download_payroll_current_month(
         logger.debug("Clicking '실급여정산' menu item")
         payroll_item = page.locator("a.dropdown-item", has_text="실급여정산").first
         await payroll_item.click()
+
+        # Wait for UI to respond (important for macOS automation environment)
+        await page.wait_for_timeout(2000)
+        logger.debug("Waited 2s after payroll menu item click")
 
         logger.debug("Waiting for payroll modal")
         modal = page.locator("sft-basic-export-modal").filter(has_text="실급여정산").first
