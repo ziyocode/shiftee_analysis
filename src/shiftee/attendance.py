@@ -40,7 +40,7 @@ async def download_report_current_month(
 
     # Wait for modal to appear
     modal = page.locator("sft-basic-export-modal").first
-    await modal.wait_for(state="visible", timeout=10_000)
+    await modal.wait_for(state="visible", timeout=settings.timeout)
 
     # Open date range dropdown
     date_input = modal.locator("sft-date-range-picker input").first
@@ -60,12 +60,13 @@ async def download_report_current_month(
     # Trigger the final download button inside the popup/modal
     confirm_download = modal.locator('button:has-text("다운로드")').first
     try:
-        async with page.expect_download(timeout=90_000) as dl_info:
+        async with page.expect_download(timeout=settings.timeout) as dl_info:
             await confirm_download.evaluate("el => el.click()")
         download = await dl_info.value
     except PlaywrightTimeoutError as exc:
+        timeout_seconds = settings.timeout / 1000
         raise RuntimeError(
-            "Download did not start within 90s after confirming in the report popup. "
+            f"Download did not start within {timeout_seconds}s after confirming in the report popup. "
             "Check that the modal rendered correctly and that the account has export permissions."
         ) from exc
 
@@ -107,7 +108,7 @@ async def download_payroll_current_month(
     await payroll_item.click()
 
     modal = page.locator("sft-basic-export-modal").filter(has_text="실급여정산").first
-    await modal.wait_for(state="visible", timeout=10_000)
+    await modal.wait_for(state="visible", timeout=settings.timeout)
 
     # 기간: fill explicit range (YYYY.MM.DD - YYYY.MM.DD)
     date_input = modal.locator("sft-date-range-picker input").first
@@ -139,12 +140,13 @@ async def download_payroll_current_month(
 
     confirm_download = modal.locator('button:has-text("다운로드")').last
     try:
-        async with page.expect_download(timeout=90_000) as dl_info:
+        async with page.expect_download(timeout=settings.timeout) as dl_info:
             await confirm_download.click()
         download = await dl_info.value
     except PlaywrightTimeoutError as exc:
+        timeout_seconds = settings.timeout / 1000
         raise RuntimeError(
-            "Download did not start within 90s after confirming in the 실급여정산 modal. "
+            f"Download did not start within {timeout_seconds}s after confirming in the 실급여정산 modal. "
             "Check filters (기간/직원 선택) and permissions."
         ) from exc
 

@@ -14,6 +14,9 @@ async def launch_browser(settings: ShifteeSettings) -> AsyncIterator[tuple[Brows
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=settings.headless)
         context = await browser.new_context()
+        # Apply timeout settings for macOS automation compatibility
+        context.set_default_timeout(settings.timeout)
+        context.set_default_navigation_timeout(settings.navigation_timeout)
         page = await context.new_page()
         try:
             yield browser, context, page
