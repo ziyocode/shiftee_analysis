@@ -68,13 +68,17 @@ async def download_report_current_month(
         logger.debug("Clicking download button")
         await download_button.click()
 
-        # Wait for UI to respond (important for macOS automation environment)
-        await page.wait_for_timeout(2000)
-        logger.debug("Waited 2s after download button click")
+        # Wait for network to be idle after click (important for macOS automation environment)
+        logger.debug("Waiting for network idle after download button click")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        logger.debug("Network is now idle")
 
-        # Wait for modal to appear
-        logger.debug("Waiting for export modal")
+        # Wait for modal to appear in DOM first, then become visible
+        logger.debug("Waiting for export modal to be attached to DOM")
         modal = page.locator("sft-basic-export-modal").first
+        await modal.wait_for(state="attached", timeout=settings.timeout)
+        logger.debug("Modal attached to DOM")
+
         await modal.wait_for(state="visible", timeout=settings.timeout)
         logger.debug("Export modal visible")
 
@@ -187,12 +191,17 @@ async def download_payroll_current_month(
         payroll_item = page.locator("a.dropdown-item", has_text="실급여정산").first
         await payroll_item.click()
 
-        # Wait for UI to respond (important for macOS automation environment)
-        await page.wait_for_timeout(2000)
-        logger.debug("Waited 2s after payroll menu item click")
+        # Wait for network to be idle after click (important for macOS automation environment)
+        logger.debug("Waiting for network idle after payroll menu item click")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        logger.debug("Network is now idle")
 
-        logger.debug("Waiting for payroll modal")
+        # Wait for modal to appear in DOM first, then become visible
+        logger.debug("Waiting for payroll modal to be attached to DOM")
         modal = page.locator("sft-basic-export-modal").filter(has_text="실급여정산").first
+        await modal.wait_for(state="attached", timeout=settings.timeout)
+        logger.debug("Modal attached to DOM")
+
         await modal.wait_for(state="visible", timeout=settings.timeout)
         logger.debug("Payroll modal visible")
 
