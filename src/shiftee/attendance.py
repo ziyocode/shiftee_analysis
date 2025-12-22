@@ -49,7 +49,10 @@ async def download_report_current_month(
             await page.wait_for_load_state("networkidle")
             logger.debug("Reports page loaded")
 
-        await page.wait_for_timeout(1000)
+        # Wait for page to be fully loaded
+        logger.debug("Waiting for page to be fully loaded")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        logger.debug("Page fully loaded")
 
         if settings.debug_screenshots:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -57,8 +60,10 @@ async def download_report_current_month(
             logger.debug(f"Screenshot saved: {timestamp}_report_02_page_ready.png")
 
         # Open the top-right download control
-        logger.debug("Finding download button")
+        logger.debug("Waiting for download button to be visible")
         download_button = page.locator('button:has-text("다운로드")').first
+        await download_button.wait_for(state="visible", timeout=settings.timeout)
+        logger.debug("Download button is visible")
 
         if settings.debug_screenshots:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -175,15 +180,22 @@ async def download_payroll_current_month(
     try:
         logger.debug(f"Navigating to attendance list URL: {settings.attendance_list_url}")
         await page.goto(settings.attendance_list_url, wait_until="domcontentloaded")
-        await page.wait_for_timeout(800)
+
+        # Wait for page to be fully loaded
+        logger.debug("Waiting for page to be fully loaded")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        logger.debug("Page fully loaded")
 
         if settings.debug_screenshots:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             await page.screenshot(path=f"logs/screenshots/{timestamp}_payroll_01_page_loaded.png")
             logger.debug(f"Screenshot saved: {timestamp}_payroll_01_page_loaded.png")
 
-        logger.debug("Clicking download toggle")
+        logger.debug("Waiting for download toggle button to be visible")
         toggle = page.locator('button.dropdown-toggle:has-text("다운로드")').first
+        await toggle.wait_for(state="visible", timeout=settings.timeout)
+        logger.debug("Download toggle button is visible")
+
         await toggle.click()
         await page.wait_for_timeout(200)
 
