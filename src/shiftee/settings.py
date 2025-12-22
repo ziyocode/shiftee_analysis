@@ -16,6 +16,11 @@ class ShifteeSettings(BaseSettings):
     timeout: int = 60000  # Default timeout for actions (60 seconds)
     navigation_timeout: int = 60000  # Default timeout for navigation (60 seconds)
 
+    # Debug settings for troubleshooting automation issues
+    debug_screenshots: bool = False  # Save screenshots at each step
+    debug_logs: bool = False  # Enable detailed logging
+    log_file: str = "logs/shiftee_debug.log"  # Log file path
+
     model_config = SettingsConfigDict(
         env_prefix="SHIFTEE_",
         env_file=(".env", "config/settings.toml"),

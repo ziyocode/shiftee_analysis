@@ -292,22 +292,35 @@ SHIFTEE_HEADLESS=false python scripts/calculate_risk_direct.py --download
 python -c "import openpyxl; wb = openpyxl.load_workbook('data/shiftee_data1.xlsx'); print(wb.sheetnames)"
 ```
 
-### macOS 자동화에서 Timeout 오류
+### macOS 자동화에서 Locator.click 오류
 
 ```bash
 ❌ 오류: Locator.click: Timeout 60000ms exceeded
+또는: Error: element is not visible
 
 # 원인
-# macOS 단축어/자동화 환경에서는 수동 실행보다 느리게 동작할 수 있음
+# macOS "자동화"는 "단축어" 수동 실행과 다른 환경에서 동작
+# - 권한 차이 (화면 녹화, 접근성 등)
+# - 백그라운드 실행 환경
+# - 느린 실행 속도
 
-# 해결 방법: .env 파일에 타임아웃 설정 추가
+# 해결 방법 1: 디버그 모드로 원인 파악
+# .env 파일에 다음 설정 추가:
+SHIFTEE_DEBUG_LOGS=true           # 상세 로그 기록
+SHIFTEE_DEBUG_SCREENSHOTS=true    # 각 단계별 스크린샷 저장
+
+# 실행 후 확인:
+# - logs/shiftee_debug.log: 상세 로그
+# - logs/screenshots/: 각 단계 스크린샷 및 HTML 스냅샷
+
+# 해결 방법 2: 타임아웃 증가
 SHIFTEE_TIMEOUT=120000          # 120초 (기본값: 60초)
 SHIFTEE_NAVIGATION_TIMEOUT=120000  # 120초 (기본값: 60초)
 
-# 또는 환경 변수로 직접 설정
-export SHIFTEE_TIMEOUT=120000
-export SHIFTEE_NAVIGATION_TIMEOUT=120000
-./scripts/auto_analyze_and_notify.sh
+# 해결 방법 3: 권한 확인
+# 시스템 설정 > 개인정보 보호 및 보안에서 확인:
+# - 화면 녹화: 단축어 앱 허용
+# - 접근성: 단축어 앱 허용
 ```
 
 ## 참고 문서

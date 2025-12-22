@@ -196,6 +196,10 @@ tmp/
 *.tmp
 ~$*
 
+# Project-specific: Debug logs and screenshots
+logs/
+*.log
+
 # Project-specific: Playwright browsers (if using Playwright)
 .playwright/
 playwright/.auth/
