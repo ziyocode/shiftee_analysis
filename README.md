@@ -292,6 +292,24 @@ SHIFTEE_HEADLESS=false python scripts/calculate_risk_direct.py --download
 python -c "import openpyxl; wb = openpyxl.load_workbook('data/shiftee_data1.xlsx'); print(wb.sheetnames)"
 ```
 
+### macOS 자동화에서 Timeout 오류
+
+```bash
+❌ 오류: Locator.click: Timeout 60000ms exceeded
+
+# 원인
+# macOS 단축어/자동화 환경에서는 수동 실행보다 느리게 동작할 수 있음
+
+# 해결 방법: .env 파일에 타임아웃 설정 추가
+SHIFTEE_TIMEOUT=120000          # 120초 (기본값: 60초)
+SHIFTEE_NAVIGATION_TIMEOUT=120000  # 120초 (기본값: 60초)
+
+# 또는 환경 변수로 직접 설정
+export SHIFTEE_TIMEOUT=120000
+export SHIFTEE_NAVIGATION_TIMEOUT=120000
+./scripts/auto_analyze_and_notify.sh
+```
+
 ## 참고 문서
 
 - **📖 상세 CLI 사용법**: [`docs/CLI_USAGE.md`](docs/CLI_USAGE.md)
