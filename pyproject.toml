@@ -29,6 +29,9 @@ dependencies = [
 [project.scripts]
 shiftee-analyze = "shiftee.cli:main"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
