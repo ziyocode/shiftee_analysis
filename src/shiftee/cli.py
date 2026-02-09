@@ -385,6 +385,17 @@ def main():
         df1 = load_shiftee_data1(args.data1)
         df2 = load_shiftee_data2(args.data2)
 
+        # 뱅킹IS팀만 대상
+        if "본조직" in df1.columns:
+            before = len(df1)
+            df1 = df1[df1["본조직"] == "뱅킹IS팀"].copy()
+            excluded = before - len(df1)
+            if excluded:
+                print(f"🏢 뱅킹IS팀 필터: {len(df1)}명 대상 (타 조직 {excluded}명 제외)")
+                if "이름" in df2.columns and "직원" in df1.columns:
+                    target_employees = df1["직원"].tolist()
+                    df2 = df2[df2["이름"].isin(target_employees)].copy()
+
         # 교대제 제외
         if "본직무" in df1.columns:
             shift_workers = df1[df1["본직무"] == "교대제"]["직원"].tolist() if "직원" in df1.columns else []
