@@ -16,9 +16,9 @@ import pandas as pd
 import openpyxl
 
 # shiftee 패키지 내부 모듈
-from shiftee.settings import ShifteeSettings
-from shiftee.login import launch_browser, login
-from shiftee.attendance import download_report_current_month, download_payroll_current_month
+from .settings import ShifteeSettings
+from .login import launch_browser, login
+from .attendance import download_report_current_month, download_payroll_current_month
 
 # kakao_send 모듈 (src/kakao_send)
 try:

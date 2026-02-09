@@ -25,7 +25,7 @@ mkdir -p ./logs
     # 가상환경 확인
     if [ ! -f "$VENV_PYTHON" ]; then
         echo "❌ Virtual environment not found at $VENV_PYTHON"
-        echo "💡 Please run 'pip install -e .' first."
+        echo "💡 Please create virtual environment: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
         exit 1
     fi
 
@@ -36,9 +36,9 @@ mkdir -p ./logs
     export PYTHONPATH="$DIR/src:$PYTHONPATH"
 
     echo "🚀 Running shiftee-analyze..."
-    
+
     # 패키지 모듈을 직접 실행 (가장 안정적)
-    "$VENV_PYTHON" -m shiftee.cli --download --send-kakao
+    "$VENV_PYTHON" -m src.shiftee --download --send-kakao
 
     echo "----------------------------------------------------------------"
     echo "✅ FINISHED: $(date)"

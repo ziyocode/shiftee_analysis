@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -52,7 +53,16 @@ async def launch_browser(settings: ShifteeSettings) -> AsyncIterator[tuple[Brows
     logger.info(f"Launching browser (headless={settings.headless})")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=settings.headless)
+        launch_args = []
+        if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            launch_args = [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--single-process",
+            ]
+        browser = await p.chromium.launch(headless=settings.headless, args=launch_args)
         logger.debug("Browser launched successfully")
 
         context = await browser.new_context()

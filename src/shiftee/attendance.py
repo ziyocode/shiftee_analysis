@@ -71,12 +71,22 @@ async def download_report_current_month(
             logger.debug(f"Screenshot saved: {timestamp}_report_03_before_download_click.png")
 
         logger.debug("Clicking download button")
-        await download_button.click()
+        # Ensure button is enabled and clickable before clicking
+        await download_button.scroll_into_view_if_needed()
+        await page.wait_for_timeout(500)  # Small delay for any animations
 
-        # Wait for network to be idle after click (important for macOS automation environment)
+        # Use native Playwright click with force option for reliability
+        await download_button.click(force=True)
+
+        # Wait for network to be idle after click
         logger.debug("Waiting for network idle after download button click")
         await page.wait_for_load_state("networkidle", timeout=settings.timeout)
         logger.debug("Network is now idle")
+
+        # Additional wait for JavaScript execution after networkidle
+        logger.debug("Waiting additional 1s for JavaScript execution")
+        await page.wait_for_timeout(1000)
+        logger.debug("JavaScript execution wait complete")
 
         # Wait for modal to appear in DOM first, then become visible
         logger.debug("Waiting for export modal to be attached to DOM")
@@ -107,7 +117,7 @@ async def download_report_current_month(
             # Default: This month
             logger.debug("Selecting '이번 달' option")
             month_option = modal.locator("span", has_text="이번 달").first
-            await month_option.evaluate("el => el.click()")
+            await month_option.click(force=True)
 
         if settings.debug_screenshots:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -119,7 +129,7 @@ async def download_report_current_month(
         confirm_download = modal.locator('button:has-text("다운로드")').first
         try:
             async with page.expect_download(timeout=settings.timeout) as dl_info:
-                await confirm_download.evaluate("el => el.click()")
+                await confirm_download.click(force=True)
             download = await dl_info.value
             logger.debug("Download started successfully")
         except PlaywrightTimeoutError as exc:
@@ -201,12 +211,18 @@ async def download_payroll_current_month(
 
         logger.debug("Clicking '실급여정산' menu item")
         payroll_item = page.locator("a.dropdown-item", has_text="실급여정산").first
-        await payroll_item.click()
+        # Use native Playwright click with force option for reliability
+        await payroll_item.click(force=True)
 
-        # Wait for network to be idle after click (important for macOS automation environment)
+        # Wait for network to be idle after click
         logger.debug("Waiting for network idle after payroll menu item click")
         await page.wait_for_load_state("networkidle", timeout=settings.timeout)
         logger.debug("Network is now idle")
+
+        # Additional wait for JavaScript execution after networkidle
+        logger.debug("Waiting additional 1s for JavaScript execution")
+        await page.wait_for_timeout(1000)
+        logger.debug("JavaScript execution wait complete")
 
         # Wait for modal to appear in DOM first, then become visible
         logger.debug("Waiting for payroll modal to be attached to DOM")

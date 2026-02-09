@@ -1,0 +1,15 @@
+.git
+.venv
+.env
+__pycache__
+*.pyc
+data/
+output/
+logs/
+config/settings.toml
+src/kakao_send/kakao_token.json
+.playwright-mcp/
+.claude/
+*.md
+.gitignore
+.dockerignore

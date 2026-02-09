@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Shiftee Analysis - Lambda + EventBridge + S3
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, prod]
+  SecretName:
+    Type: String
+    Default: shiftee/credentials
+  KakaoSecretName:
+    Type: String
+    Default: shiftee/kakao-token
+  SendKakao:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  ScheduleExpression:
+    Type: String
+    Default: "cron(0 22 ? * SUN-THU *)"
+    Description: "UTC 22:00 = KST 07:00 next day (MON-FRI)"
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 2048
+
+Resources:
+  # S3 Bucket
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "shiftee-reports-${Environment}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldReports
+            Status: Enabled
+            ExpirationInDays: 90
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # Lambda Function
+  ShifteeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "shiftee-analysis-${Environment}"
+      PackageType: Image
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 1024
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref ReportsBucket
+          S3_PREFIX: reports
+          SECRET_NAME: !Ref SecretName
+          KAKAO_SECRET_NAME: !Ref KakaoSecretName
+          SEND_KAKAO: !Ref SendKakao
+          SHIFTEE_HEADLESS: "true"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ReportsBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+                - secretsmanager:PutSecretValue
+              Resource:
+                - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}-*"
+                - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${KakaoSecretName}-*"
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+            Description: "Daily Shiftee analysis (KST 09:00, weekdays)"
+            Enabled: true
+    Metadata:
+      DockerTag: latest
+      DockerContext: ../
+      Dockerfile: Dockerfile
+
+  # CloudWatch Log Group
+  ShifteeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/shiftee-analysis-${Environment}"
+      RetentionInDays: 30
+
+  # CloudWatch Alarm
+  ShifteeFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "shiftee-analysis-${Environment}-errors"
+      AlarmDescription: "Shiftee Lambda function errors"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ShifteeFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  ShifteeFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt ShifteeFunction.Arn
+  ReportsBucketName:
+    Description: S3 bucket for reports
+    Value: !Ref ReportsBucket

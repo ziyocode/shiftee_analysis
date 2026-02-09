@@ -26,6 +26,9 @@ dependencies = [
     "requests>=2.31.0",
 ]
 
+[project.optional-dependencies]
+lambda = ["boto3>=1.28", "awslambdaric>=2.0"]
+
 [project.scripts]
 shiftee-analyze = "shiftee.cli:main"
 
