@@ -18,10 +18,10 @@ import json
 import os
 
 # 카카오 REST API 키 입력
-CLIENT_ID = "YOUR_REST_API_KEY_HERE"
+CLIENT_ID = "14a74c4d5dae813d9244b8a587696a11"
 
 # 인증 코드 입력 (위 URL로 받은 code 파라미터 값)
-AUTH_CODE = "YOUR_AUTHORIZATION_CODE_HERE"
+AUTH_CODE = "G50DSAZsWJgGlPBS5wPyXzcm0p5fasqPb_ot3Oq8S92VRyp7GMAh6QAAAAQKFyEtAAABnPbSNxv_A_o_BVb6-Q"
 
 # 토큰 발급 요청
 url = "https://kauth.kakao.com/oauth/token"

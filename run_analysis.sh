@@ -3,7 +3,7 @@
 # 사용법: ./run_analysis.sh
 
 # 오류 발생 시 중단
-set -e
+set -euo pipefail
 
 # 로그 파일 설정
 LOG_FILE="./logs/run_analysis.log"
@@ -19,26 +19,20 @@ mkdir -p ./logs
     cd "$DIR"
     echo "📂 Working Directory: $PWD"
 
-    # 가상환경의 실행 파일 절대 경로 설정
-    VENV_PYTHON="$DIR/.venv/bin/python"
-    
-    # 가상환경 확인
-    if [ ! -f "$VENV_PYTHON" ]; then
-        echo "❌ Virtual environment not found at $VENV_PYTHON"
-        echo "💡 Please create virtual environment: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
+    # PATH 설정 (cron 등 비대화형 환경 대응)
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+    MISE_BIN="$(command -v mise || true)"
+    if [ -z "$MISE_BIN" ]; then
+        echo "❌ mise command not found"
+        echo "💡 Please install tools first: mise install"
         exit 1
     fi
 
-    # PATH 설정 (시스템 명령어용)
-    export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-    
-    # PYTHONPATH에 src 추가 (ImportError 방지)
-    export PYTHONPATH="$DIR/src:$PYTHONPATH"
+    "$MISE_BIN" install --quiet
 
-    echo "🚀 Running shiftee-analyze..."
-
-    # 패키지 모듈을 직접 실행 (가장 안정적)
-    "$VENV_PYTHON" -m src.shiftee --download --send-kakao
+    echo "🚀 Running shiftee-analyze via mise + uv..."
+    "$MISE_BIN" exec -- uv run --frozen shiftee-analyze --download --send-kakao
 
     echo "----------------------------------------------------------------"
     echo "✅ FINISHED: $(date)"
