@@ -97,23 +97,23 @@ async def run_workflow():
     df1 = load_shiftee_data1(data1_path)
     df2 = load_shiftee_data2(data2_path)
 
-    # 뱅킹IS팀만 대상
-    if "본조직" in df1.columns:
+    # 팀 필터 (설정된 경우만 적용)
+    if settings.team_filter and "본조직" in df1.columns:
         before = len(df1)
-        df1 = df1[df1["본조직"] == "뱅킹IS팀"].copy()
+        df1 = df1[df1["본조직"] == settings.team_filter].copy()
         excluded = before - len(df1)
         if excluded:
-            logger.info(f"Filtered to 뱅킹IS팀: {len(df1)}명 (제외 {excluded}명)")
+            logger.info(f"Filtered to {settings.team_filter}: {len(df1)}명 (제외 {excluded}명)")
             if "이름" in df2.columns and "직원" in df1.columns:
                 target_employees = df1["직원"].tolist()
                 df2 = df2[df2["이름"].isin(target_employees)].copy()
 
-    # 교대제 제외
-    if "본직무" in df1.columns:
-        shift_workers = df1[df1["본직무"] == "교대제"]["직원"].tolist() if "직원" in df1.columns else []
-        df1 = df1[df1["본직무"] != "교대제"].copy()
+    # 직무 제외 (설정된 경우만 적용)
+    if settings.exclude_role and "본직무" in df1.columns:
+        shift_workers = df1[df1["본직무"] == settings.exclude_role]["직원"].tolist() if "직원" in df1.columns else []
+        df1 = df1[df1["본직무"] != settings.exclude_role].copy()
         if shift_workers:
-            logger.info(f"Excluded {len(shift_workers)} shift workers")
+            logger.info(f"Excluded {len(shift_workers)} {settings.exclude_role} workers")
             if "이름" in df2.columns:
                 df2 = df2[~df2["이름"].isin(shift_workers)].copy()
 
@@ -152,6 +152,24 @@ async def run_workflow():
                 logger.warning("KakaoTalk notification failed")
         except Exception as e:
             logger.warning(f"KakaoTalk notification skipped: {e}")
+
+    # 6. Slack 알림 (옵션)
+    if os.environ.get("SEND_SLACK", "false").lower() == "true":
+        try:
+            from slack_send import SlackWebhook, format_slack_message
+
+            webhook_url = settings.slack_webhook_url
+            if webhook_url:
+                slack = SlackWebhook(webhook_url)
+                message = format_slack_message(df, start_date, end_date)
+                if slack.send_message(message):
+                    logger.info("Slack notification sent")
+                else:
+                    logger.warning("Slack notification failed")
+            else:
+                logger.warning("SHIFTEE_SLACK_WEBHOOK_URL not set, skipping Slack")
+        except Exception as e:
+            logger.warning(f"Slack notification skipped: {e}")
 
     # 결과 요약
     total = len(df)

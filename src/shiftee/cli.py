@@ -28,6 +28,13 @@ try:
 except ImportError:
     KAKAO_AVAILABLE = False
 
+# slack_send 모듈 (src/slack_send)
+try:
+    from slack_send import SlackWebhook, format_slack_message, format_slack_summary
+    SLACK_AVAILABLE = True
+except ImportError:
+    SLACK_AVAILABLE = False
+
 
 async def download_shiftee_data(start_date: datetime, end_date: datetime, output_dir: Path):
     """Shiftee에서 데이터 다운로드."""
@@ -363,6 +370,8 @@ def main():
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--send-kakao", action="store_true")
     parser.add_argument("--kakao-summary", action="store_true")
+    parser.add_argument("--send-slack", action="store_true")
+    parser.add_argument("--slack-summary", action="store_true")
     
     args = parser.parse_args()
 
@@ -381,27 +390,29 @@ def main():
 
         print("=" * 80 + "\n🚀 Shiftee 적정성 위험 판정\n" + "=" * 80 + "\n")
 
+        settings = ShifteeSettings()
+
         print("📂 1단계: 데이터 로드")
         df1 = load_shiftee_data1(args.data1)
         df2 = load_shiftee_data2(args.data2)
 
-        # 뱅킹IS팀만 대상
-        if "본조직" in df1.columns:
+        # 팀 필터 (설정된 경우만 적용)
+        if settings.team_filter and "본조직" in df1.columns:
             before = len(df1)
-            df1 = df1[df1["본조직"] == "뱅킹IS팀"].copy()
+            df1 = df1[df1["본조직"] == settings.team_filter].copy()
             excluded = before - len(df1)
             if excluded:
-                print(f"🏢 뱅킹IS팀 필터: {len(df1)}명 대상 (타 조직 {excluded}명 제외)")
+                print(f"🏢 {settings.team_filter} 필터: {len(df1)}명 대상 (타 조직 {excluded}명 제외)")
                 if "이름" in df2.columns and "직원" in df1.columns:
                     target_employees = df1["직원"].tolist()
                     df2 = df2[df2["이름"].isin(target_employees)].copy()
 
-        # 교대제 제외
-        if "본직무" in df1.columns:
-            shift_workers = df1[df1["본직무"] == "교대제"]["직원"].tolist() if "직원" in df1.columns else []
-            df1 = df1[df1["본직무"] != "교대제"].copy()
+        # 직무 제외 (설정된 경우만 적용)
+        if settings.exclude_role and "본직무" in df1.columns:
+            shift_workers = df1[df1["본직무"] == settings.exclude_role]["직원"].tolist() if "직원" in df1.columns else []
+            df1 = df1[df1["본직무"] != settings.exclude_role].copy()
             if shift_workers:
-                print(f"⚠️  교대제 직원 {len(shift_workers)}명 제외: {', '.join(shift_workers[:5])}...")
+                print(f"⚠️  {settings.exclude_role} 직원 {len(shift_workers)}명 제외: {', '.join(shift_workers[:5])}...")
                 if "이름" in df2.columns:
                     df2 = df2[~df2["이름"].isin(shift_workers)].copy()
 
@@ -433,6 +444,22 @@ def main():
             kakao = Kakao()
             msg = format_summary_message(df, start_date, end_date) if args.kakao_summary else format_risk_message(df, start_date, end_date, show_all=False)
             if kakao.send_message(msg):
+                print("   ✅ 전송 완료")
+            else:
+                print("   ⚠️  전송 실패")
+
+        if args.send_slack or args.slack_summary:
+            if not SLACK_AVAILABLE:
+                print("\n⚠️  slack_send 모듈을 불러올 수 없습니다.")
+                return 1
+            if not settings.slack_webhook_url:
+                print("\n⚠️  SHIFTEE_SLACK_WEBHOOK_URL이 설정되지 않았습니다.")
+                return 1
+
+            print("💬 Slack 메시지 전송")
+            slack = SlackWebhook(settings.slack_webhook_url)
+            msg = format_slack_summary(df, start_date, end_date) if args.slack_summary else format_slack_message(df, start_date, end_date, show_all=False)
+            if slack.send_message(msg):
                 print("   ✅ 전송 완료")
             else:
                 print("   ⚠️  전송 실패")

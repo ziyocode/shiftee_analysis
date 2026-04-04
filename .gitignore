@@ -203,3 +203,8 @@ logs/
 # Project-specific: Playwright browsers (if using Playwright)
 .playwright/
 playwright/.auth/
+.playwright-mcp/
+infra/.aws-sam/
+mise.toml
+uv.lock
+

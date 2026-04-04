@@ -12,6 +12,13 @@ class ShifteeSettings(BaseSettings):
     report_url: str | None = None  # Optional direct URL for the Reports page
     attendance_list_url: str = "https://shiftee.io/app/companies/1920030/manager/attendances/list"
 
+    # 분석 필터
+    team_filter: str | None = None  # 특정 팀만 분석 (예: "뱅킹IS팀")
+    exclude_role: str | None = "교대제"  # 제외할 직무
+
+    # 알림
+    slack_webhook_url: str | None = None  # Slack Incoming Webhook URL
+
     # Timeout settings (milliseconds) - increased for macOS automation
     timeout: int = 60000  # Default timeout for actions (60 seconds)
     navigation_timeout: int = 60000  # Default timeout for navigation (60 seconds)
