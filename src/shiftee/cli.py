@@ -423,12 +423,14 @@ def main():
         df2 = load_shiftee_data2(args.data2)
 
         # 팀 필터 (설정된 경우만 적용)
-        if settings.team_filter and "본조직" in df1.columns:
+        team_list = settings.team_filter_list
+        if team_list and "본조직" in df1.columns:
             before = len(df1)
-            df1 = df1[df1["본조직"] == settings.team_filter].copy()
+            df1 = df1[df1["본조직"].isin(team_list)].copy()
             excluded = before - len(df1)
             if excluded:
-                print(f"🏢 {settings.team_filter} 필터: {len(df1)}명 대상 (타 조직 {excluded}명 제외)")
+                team_label = ", ".join(team_list)
+                print(f"🏢 [{team_label}] 필터: {len(df1)}명 대상 (타 조직 {excluded}명 제외)")
                 if "이름" in df2.columns and "직원" in df1.columns:
                     target_employees = df1["직원"].tolist()
                     df2 = df2[df2["이름"].isin(target_employees)].copy()
