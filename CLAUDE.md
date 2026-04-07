@@ -9,15 +9,11 @@ Automated Excel report downloader for Shiftee.io (https://shiftee.io) using Play
 ## Development Setup
 
 ```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
-
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (creates .venv automatically)
+uv sync
 
 # Install Playwright browser
-python -m playwright install chromium
+uv run playwright install chromium
 
 # Configure credentials (required before first run)
 cp config/settings.example.toml config/settings.toml
@@ -28,10 +24,10 @@ cp config/settings.example.toml config/settings.toml
 
 ```bash
 # Standard headless mode (default)
-python -m src.shiftee
+uv run shiftee-analyze
 
 # Show browser for debugging
-SHIFTEE_HEADLESS=false python -m src.shiftee
+SHIFTEE_HEADLESS=false uv run shiftee-analyze
 ```
 
 The application will:
@@ -85,4 +81,4 @@ Currently no automated tests exist. For manual testing:
 
 - **"Download did not start within 90s"**: Check that modal rendered correctly and account has export permissions; may indicate UI changes requiring selector updates
 - **Login fails**: Verify credentials in settings; check for captcha/MFA requirements (not currently supported)
-- **Playwright browser not found**: Run `python -m playwright install chromium`
+- **Playwright browser not found**: Run `uv run playwright install chromium`
