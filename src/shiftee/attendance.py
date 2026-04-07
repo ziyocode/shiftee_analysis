@@ -33,19 +33,31 @@ async def download_report_current_month(
             await page.goto(settings.report_url, wait_until="domcontentloaded")
             logger.debug("Report page loaded via direct URL")
         else:
-            logger.debug("Finding '리포트' link")
-            report_link = page.get_by_role("link", name="리포트")
-            if await report_link.count() == 0:
-                logger.debug("Link not found by role, trying text locator")
-                report_link = page.locator("text=리포트").first
+            # Try to find report link by href pattern (works regardless of company ID or sidebar state)
+            logger.debug("Finding '리포트' link by href pattern")
+            report_link = page.locator("a[href*='/manager/report']").first
+            link_count = await report_link.count()
+
+            if link_count == 0:
+                logger.debug("href pattern not found, trying text-based locator")
+                report_link = page.get_by_role("link", name="리포트")
+                if await report_link.count() == 0:
+                    report_link = page.locator("text=리포트").first
 
             if settings.debug_screenshots:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 await page.screenshot(path=f"logs/screenshots/{timestamp}_report_01_before_link_click.png")
                 logger.debug(f"Screenshot saved: {timestamp}_report_01_before_link_click.png")
 
-            logger.debug("Clicking '리포트' link")
-            await report_link.click()
+            # Get the href and navigate directly to avoid sidebar collapsed state issues
+            href = await report_link.get_attribute("href")
+            if href:
+                report_url = href if href.startswith("http") else f"https://shiftee.io{href}"
+                logger.debug(f"Navigating directly to report URL: {report_url}")
+                await page.goto(report_url, wait_until="domcontentloaded")
+            else:
+                logger.debug("Clicking '리포트' link")
+                await report_link.click()
             await page.wait_for_load_state("networkidle")
             logger.debug("Reports page loaded")
 
@@ -188,8 +200,15 @@ async def download_payroll_current_month(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        logger.debug(f"Navigating to attendance list URL: {settings.attendance_list_url}")
-        await page.goto(settings.attendance_list_url, wait_until="domcontentloaded")
+        if settings.attendance_list_url:
+            nav_url = settings.attendance_list_url
+        else:
+            # Find attendance list link by href pattern
+            attendance_link = page.locator("a[href*='/manager/attendances/list']").first
+            href = await attendance_link.get_attribute("href")
+            nav_url = href if href and href.startswith("http") else f"https://shiftee.io{href}"
+        logger.debug(f"Navigating to attendance list URL: {nav_url}")
+        await page.goto(nav_url, wait_until="domcontentloaded")
 
         # Wait for page to be fully loaded
         logger.debug("Waiting for page to be fully loaded")

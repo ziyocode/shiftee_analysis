@@ -8,9 +8,9 @@ class ShifteeSettings(BaseSettings):
     password: str
     headless: bool = True
     base_url: str = "https://shiftee.io"
-    calendar_url: str = "https://shiftee.io/app/companies/1920030/manager/attendances/calendar"
-    report_url: str | None = None  # Optional direct URL for the Reports page
-    attendance_list_url: str = "https://shiftee.io/app/companies/1920030/manager/attendances/list"
+    calendar_url: str | None = None
+    report_url: str | None = None
+    attendance_list_url: str | None = None
 
     # 분석 필터
     team_filter: str | None = None  # 특정 팀만 분석 (예: "뱅킹IS팀")
