@@ -16,8 +16,13 @@ class ShifteeSettings(BaseSettings):
     team_filter: str | None = None  # 특정 팀만 분석 (예: "뱅킹IS팀")
     exclude_role: str | None = "교대제"  # 제외할 직무
 
-    # 알림
-    slack_webhook_url: str | None = None  # Slack Incoming Webhook URL
+    # 카카오톡 알림
+    kakao_app_key: str | None = None
+    kakao_access_token: str | None = None
+    kakao_refresh_token: str | None = None
+
+    # Slack 알림
+    slack_webhook_url: str | None = None
 
     # Timeout settings (milliseconds) - increased for macOS automation
     timeout: int = 60000  # Default timeout for actions (60 seconds)

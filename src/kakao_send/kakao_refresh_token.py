@@ -15,32 +15,38 @@ class Kakao:
     카카오톡 REST API를 사용하여 토큰 관리 및 메시지 전송을 수행합니다.
     """
 
-    def __init__(self, app_key: str = None):
+    def __init__(self, app_key: str = None, access_token: str = None, refresh_token: str = None):
         """Kakao 클래스 초기화
 
         Args:
-            app_key: 카카오 REST API 키 (선택사항)
-                    제공되지 않으면 환경변수 KAKAO_APP_KEY에서 읽습니다.
+            app_key: 카카오 REST API 키
+            access_token: 카카오 액세스 토큰
+            refresh_token: 카카오 리프레시 토큰
         """
-        self.app_key = "14a74c4d5dae813d9244b8a587696a11"
+        self.app_key = app_key
 
         if not self.app_key:
             raise ValueError(
                 "카카오 REST API 키가 필요합니다. "
-                "app_key 파라미터로 전달하거나 KAKAO_APP_KEY 환경변수를 설정하세요."
+                ".env 파일의 SHIFTEE_KAKAO_APP_KEY를 설정하세요."
             )
 
         self.token_path = os.path.join(os.path.dirname(__file__), "kakao_token.json")
 
-        # 토큰 파일이 없으면 안내 메시지 출력
-        if not os.path.exists(self.token_path):
+        if access_token and refresh_token:
+            self.tokens = {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+            }
+        elif os.path.exists(self.token_path):
+            with open(self.token_path, "r", encoding="utf-8") as fp:
+                self.tokens = json.load(fp)
+        else:
             raise FileNotFoundError(
-                f"토큰 파일을 찾을 수 없습니다: {self.token_path}\n"
-                "kakao_get_token.py를 실행하여 초기 토큰을 생성하세요."
+                "카카오 토큰을 찾을 수 없습니다.\n"
+                ".env 파일의 SHIFTEE_KAKAO_ACCESS_TOKEN/SHIFTEE_KAKAO_REFRESH_TOKEN을 설정하거나,\n"
+                "kakao_get_token.py를 실행하여 토큰 파일을 생성하세요."
             )
-
-        with open(self.token_path, "r", encoding="utf-8") as fp:
-            self.tokens = json.load(fp)
 
     def refresh_token(self) -> bool:
         """카카오 액세스 토큰 갱신
@@ -72,8 +78,12 @@ class Kakao:
         if "refresh_token" in result:
             self.tokens["refresh_token"] = result["refresh_token"]
 
-        with open(self.token_path, "w", encoding="utf-8") as fp:
-            json.dump(self.tokens, fp, ensure_ascii=False, indent=2)
+        # 토큰 파일 업데이트 (다음 실행을 위해)
+        try:
+            with open(self.token_path, "w", encoding="utf-8") as fp:
+                json.dump(self.tokens, fp, ensure_ascii=False, indent=2)
+        except OSError:
+            pass  # 파일 쓰기 불가 환경(Lambda 등)에서는 무시
 
         return True
 

@@ -17,11 +17,19 @@ import requests
 import json
 import os
 
-# 카카오 REST API 키 입력
-CLIENT_ID = "14a74c4d5dae813d9244b8a587696a11"
+# 환경변수에서 로드 (.env 파일 참조)
+# 초기 토큰 발급 시에만 사용하므로 직접 환경변수에��� 읽음
+CLIENT_ID = os.environ.get("SHIFTEE_KAKAO_APP_KEY", "")
+AUTH_CODE = os.environ.get("KAKAO_AUTH_CODE", "")
 
-# 인증 코드 입력 (위 URL로 받은 code 파라미터 값)
-AUTH_CODE = "G50DSAZsWJgGlPBS5wPyXzcm0p5fasqPb_ot3Oq8S92VRyp7GMAh6QAAAAQKFyEtAAABnPbSNxv_A_o_BVb6-Q"
+if not CLIENT_ID:
+    print("❌ SHIFTEE_KAKAO_APP_KEY 환경변수를 설정하세요.")
+    exit(1)
+if not AUTH_CODE:
+    print("❌ KAKAO_AUTH_CODE 환경변수를 설정하세요.")
+    print("   인증 코드 발급 URL:")
+    print(f"   https://kauth.kakao.com/oauth/authorize?client_id={CLIENT_ID}&redirect_uri=https://www.example.com/oauth&response_type=code")
+    exit(1)
 
 # 토큰 발급 요청
 url = "https://kauth.kakao.com/oauth/token"

@@ -7,6 +7,21 @@ import pandas as pd
 from datetime import datetime
 
 
+def _safe_pct(count: int, total: int) -> float:
+    """Return a percentage without raising when total is zero."""
+    return 0.0 if total == 0 else count / total * 100
+
+
+def _status_counts(df: pd.DataFrame) -> tuple[int, int, int, int]:
+    """Return total, normal, risk-only, and violation counts."""
+    total_count = len(df)
+    risk_count = len(df[df["U_적정성"] == "위험"])
+    violation_count = len(df[df["V_법규기준초과자"] == "법기준초과"])
+    risk_only_count = risk_count - violation_count
+    normal_count = total_count - risk_count
+    return total_count, normal_count, risk_only_count, violation_count
+
+
 def format_risk_message(
     df: pd.DataFrame,
     start_date: datetime,
@@ -28,10 +43,7 @@ def format_risk_message(
     period = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}"
 
     # 통계 계산
-    total_count = len(df)
-    risk_count = len(df[df["U_적정성"] == "위험"])
-    violation_count = len(df[df["V_법규기준초과자"] == "법기준초과"])
-    normal_count = total_count - risk_count - violation_count
+    total_count, normal_count, risk_only_count, violation_count = _status_counts(df)
 
     # 메시지 헤더
     message = f"""📊 초과근로 적정성 분석 결과
@@ -42,13 +54,13 @@ def format_risk_message(
 📈 전체 현황
 ━━━━━━━━━━━━━━
 총 직원: {total_count}명
-  ✅ 정상: {normal_count}명 ({normal_count/total_count*100:.1f}%)
-  ⚠️ 위험: {risk_count}명 ({risk_count/total_count*100:.1f}%)
-  🚨 법규기준초과: {violation_count}명 ({violation_count/total_count*100:.1f}%)
+  ✅ 정상: {normal_count}명 ({_safe_pct(normal_count, total_count):.1f}%)
+  ⚠️ 위험: {risk_only_count}명 ({_safe_pct(risk_only_count, total_count):.1f}%)
+  🚨 법규기준초과: {violation_count}명 ({_safe_pct(violation_count, total_count):.1f}%)
 """
 
     # 위험 직원 목록
-    if risk_count > 0 or violation_count > 0:
+    if risk_only_count > 0 or violation_count > 0:
         message += "\n━━━━━━━━━━━━━━\n"
         message += "⚠️ 주의 필요 직원 목록\n"
         message += "━━━━━━━━━━━━━━\n"
@@ -117,19 +129,16 @@ def format_summary_message(
     """
     period = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}"
 
-    total_count = len(df)
-    risk_count = len(df[df["U_적정성"] == "위험"])
-    violation_count = len(df[df["V_법규기준초과자"] == "법기준초과"])
-    normal_count = total_count - risk_count - violation_count
+    total_count, normal_count, risk_only_count, violation_count = _status_counts(df)
 
     message = f"""📊 초과근로 적정성 분석 완료
 
 📅 기간: {period}
 
 총 {total_count}명
-✅ 정상: {normal_count}명 ({normal_count/total_count*100:.1f}%)
-⚠️ 위험: {risk_count}명 ({risk_count/total_count*100:.1f}%)
-🚨 법규초과: {violation_count}명 ({violation_count/total_count*100:.1f}%)
+✅ 정상: {normal_count}명 ({_safe_pct(normal_count, total_count):.1f}%)
+⚠️ 위험: {risk_only_count}명 ({_safe_pct(risk_only_count, total_count):.1f}%)
+🚨 법규초과: {violation_count}명 ({_safe_pct(violation_count, total_count):.1f}%)
 
 생성: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
 

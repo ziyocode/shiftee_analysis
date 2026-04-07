@@ -7,6 +7,11 @@ ENVIRONMENT="${1:-prod}"
 ECR_REPO_NAME="shiftee-analysis"
 STACK_NAME="shiftee-analysis-${ENVIRONMENT}"
 
+# .env에서 Slack Webhook URL 로드
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+SLACK_WEBHOOK_URL="${SHIFTEE_SLACK_WEBHOOK_URL:-$(grep '^SHIFTEE_SLACK_WEBHOOK_URL=' "${PROJECT_DIR}/.env" 2>/dev/null | cut -d= -f2- || echo "")}"
+
 echo "=========================================="
 echo " Shiftee Analysis 배포"
 echo " Environment: ${ENVIRONMENT}"
@@ -47,9 +52,6 @@ fi
 # 2. SAM 빌드 (Docker 이미지 빌드 포함)
 echo ""
 echo "2. SAM 빌드 (Docker 이미지 빌드 포함, 첫 빌드 시 5~10분 소요)..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
-
 cd "${PROJECT_DIR}/infra"
 sam build --template-file template.yaml
 
@@ -60,7 +62,11 @@ sam deploy \
     --stack-name "${STACK_NAME}" \
     --capabilities CAPABILITY_IAM \
     --region "${REGION}" \
-    --parameter-overrides "Environment=${ENVIRONMENT}" \
+    --parameter-overrides \
+        "Environment=${ENVIRONMENT}" \
+        "SendKakao=true" \
+        "SendSlack=true" \
+        "SlackWebhookUrl=${SLACK_WEBHOOK_URL}" \
     --image-repository "${ECR_URI}/${ECR_REPO_NAME}" \
     --no-confirm-changeset
 

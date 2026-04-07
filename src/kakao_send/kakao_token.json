@@ -1,8 +1,4 @@
 {
-  "access_token": "5FyG8n3GPKBHY8O5PbD32MvmeSba6ffvAAAAAQoXIiAAAAGdVfZxC90Jz_1t7hqp",
-  "token_type": "bearer",
-  "refresh_token": "3mQNYcNQSpjGhN8BeOP0iEP1wSKDN0voAAAAAgoXFp8AAAGc9tRWZ90Jz_1t7hqp",
-  "expires_in": 21599,
-  "scope": "profile_image talk_message profile_nickname",
-  "refresh_token_expires_in": 5183999
+  "access_token": "YrOzPgCX4xrb0buukePWT-NRf_CjYYMYAAAAAQoXBi4AAAGdW3A8Kd0Jz_1t7hqp",
+  "refresh_token": "3mQNYcNQSpjGhN8BeOP0iEP1wSKDN0voAAAAAgoXFp8AAAGc9tRWZ90Jz_1t7hqp"
 }

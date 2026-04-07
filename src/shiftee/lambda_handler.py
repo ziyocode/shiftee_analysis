@@ -14,11 +14,13 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import boto3
 
 logger = logging.getLogger("shiftee-lambda")
 logger.setLevel(logging.INFO)
+KST = ZoneInfo("Asia/Seoul")
 
 
 def _load_secrets():
@@ -63,9 +65,13 @@ async def run_workflow():
     from .login import launch_browser, login
     from .settings import ShifteeSettings
 
-    now = datetime.now()
-    start_date = datetime(now.year, now.month, 1)
-    end_date = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    now_kst = datetime.now(KST)
+    today_kst = now_kst.date()
+    start_date = datetime(today_kst.year, today_kst.month, 1)
+    end_date = datetime.combine(
+        today_kst - timedelta(days=1),
+        datetime.min.time(),
+    )
     start_str = start_date.strftime("%Y.%m.%d")
     end_str = end_date.strftime("%Y.%m.%d")
 
@@ -125,14 +131,14 @@ async def run_workflow():
     df = calculate_legal_limits_and_risk(df, start_date, end_date)
 
     # 3. Excel 저장
-    report_filename = f"report_{now.strftime('%Y%m%d')}.xlsx"
+    report_filename = f"report_{now_kst.strftime('%Y%m%d')}.xlsx"
     report_path = output_dir / report_filename
     save_to_excel(df, report_path, start_date, end_date)
     logger.info(f"Report saved: {report_path}")
 
     # 4. S3 업로드
     s3_prefix = os.environ.get("S3_PREFIX", "reports")
-    date_prefix = now.strftime("%Y/%m")
+    date_prefix = now_kst.strftime("%Y/%m")
 
     _upload_to_s3(data1_path, f"{s3_prefix}/{date_prefix}/{data1_path.name}")
     _upload_to_s3(data2_path, f"{s3_prefix}/{date_prefix}/{data2_path.name}")
@@ -172,9 +178,9 @@ async def run_workflow():
             logger.warning(f"Slack notification skipped: {e}")
 
     # 결과 요약
-    total = len(df)
-    risk_count = len(df[df["U_적정성"] == "위험"])
-    legal_exceed = len(df[df["V_법규기준초과자"] == "법기준초과"])
+    from .cli import get_status_counts
+
+    total, _, risk_count, legal_exceed = get_status_counts(df)
 
     return {
         "period": f"{start_str} ~ {end_str}",

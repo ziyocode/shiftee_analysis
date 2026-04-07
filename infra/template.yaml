@@ -17,6 +17,19 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
+  SendSlack:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  SlackWebhookUrl:
+    Type: String
+    Default: ""
+  TeamFilter:
+    Type: String
+    Default: "뱅킹IS팀"
+  ExcludeRole:
+    Type: String
+    Default: "교대제"
   ScheduleExpression:
     Type: String
     Default: "cron(0 22 ? * SUN-THU *)"
@@ -66,6 +79,10 @@ Resources:
           SECRET_NAME: !Ref SecretName
           KAKAO_SECRET_NAME: !Ref KakaoSecretName
           SEND_KAKAO: !Ref SendKakao
+          SEND_SLACK: !Ref SendSlack
+          SHIFTEE_SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
+          SHIFTEE_TEAM_FILTER: !Ref TeamFilter
+          SHIFTEE_EXCLUDE_ROLE: !Ref ExcludeRole
           SHIFTEE_HEADLESS: "true"
       Policies:
         - S3CrudPolicy:

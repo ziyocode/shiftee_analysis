@@ -278,29 +278,55 @@ def calculate_legal_limits_and_risk(df: pd.DataFrame, start_date: datetime, end_
     return df
 
 
-def print_summary(df: pd.DataFrame):
-    """계산 결과 요약 출력."""
-    print("\n" + "=" * 80 + "\n📊 적정성 분석 결과\n" + "=" * 80)
+def get_status_counts(df: pd.DataFrame) -> tuple[int, int, int, int]:
+    """Return total, normal, risk-only, and legal-exceed counts."""
     total = len(df)
     risk_count = len(df[df["U_적정성"] == "위험"])
     legal_exceed_count = len(df[df["V_법규기준초과자"] == "법기준초과"])
+    risk_only_count = risk_count - legal_exceed_count
+    normal_count = total - risk_count
+    return total, normal_count, risk_only_count, legal_exceed_count
+
+
+def print_summary(df: pd.DataFrame):
+    """계산 결과 요약 출력."""
+    print("\n" + "=" * 80 + "\n📊 적정성 분석 결과\n" + "=" * 80)
+    total, normal_count, risk_only_count, legal_exceed_count = get_status_counts(df)
     print(f"\n총 직원: {total}명")
-    print(f"  - ✅ 정상: {total - risk_count}명")
-    print(f"  - ⚠️  위험: {risk_count}명")
+    print(f"  - ✅ 정상: {normal_count}명")
+    print(f"  - ⚠️  위험: {risk_only_count}명")
     print(f"  - 🚨 법규기준초과: {legal_exceed_count}명")
 
 
 def print_risk_employees(df: pd.DataFrame):
-    """위험 직원 목록 출력."""
-    risk_df = df[df["U_적정성"] == "위험"].copy()
-    if risk_df.empty:
-        print("\n✅ 위험 직원이 없습니다!\n")
+    """주의 필요 직원 목록 출력."""
+    legal_df = df[df["V_법규기준초과자"] == "법기준초과"].copy()
+    risk_only_df = df[
+        (df["U_적정성"] == "위험") & (df["V_법규기준초과자"] != "법기준초과")
+    ].copy()
+
+    if legal_df.empty and risk_only_df.empty:
+        print("\n✅ 주의 필요 직원이 없습니다!\n")
         return
 
-    print("\n" + "=" * 80 + "\n⚠️  위험 직원 목록\n" + "=" * 80)
-    display_df = risk_df[["B_직원", "C_본조직", "O_실제초과근로_조기출근제외", "Q_법정초과근로시간", "U_적정성", "V_법규기준초과자"]].copy()
-    display_df.columns = ["직원", "본조직", "실제초과근로(h)", "법정기준(h)", "적정성", "법규초과"]
-    print(display_df.sort_values("실제초과근로(h)", ascending=False).to_string(index=False))
+    print("\n" + "=" * 80 + "\n⚠️  주의 필요 직원 목록\n" + "=" * 80)
+
+    if not legal_df.empty:
+        print("\n🚨 법규기준초과")
+        legal_display_df = legal_df[
+            ["B_직원", "C_본조직", "O_실제초과근로_조기출근제외", "R_법규위반_전일까지", "V_법규기준초과자"]
+        ].copy()
+        legal_display_df.columns = ["직원", "본조직", "실제초과근로(h)", "법규기준(h)", "법규초과"]
+        print(legal_display_df.sort_values("실제초과근로(h)", ascending=False).to_string(index=False))
+
+    if not risk_only_df.empty:
+        print("\n⚠️  위험")
+        risk_display_df = risk_only_df[
+            ["B_직원", "C_본조직", "O_실제초과근로_조기출근제외", "Q_법정초과근로시간", "U_적정성"]
+        ].copy()
+        risk_display_df.columns = ["직원", "본조직", "실제초과근로(h)", "법정기준(h)", "적정성"]
+        print(risk_display_df.sort_values("실제초과근로(h)", ascending=False).to_string(index=False))
+
     print()
 
 
@@ -441,7 +467,11 @@ def main():
                 return 1
                 
             print("📱 카카오톡 메시지 전송")
-            kakao = Kakao()
+            kakao = Kakao(
+                app_key=settings.kakao_app_key,
+                access_token=settings.kakao_access_token,
+                refresh_token=settings.kakao_refresh_token,
+            )
             msg = format_summary_message(df, start_date, end_date) if args.kakao_summary else format_risk_message(df, start_date, end_date, show_all=False)
             if kakao.send_message(msg):
                 print("   ✅ 전송 완료")
