@@ -13,7 +13,7 @@ class ShifteeSettings(BaseSettings):
     attendance_list_url: str | None = None
 
     # 분석 필터
-    team_filter: str | None = None  # 특정 팀만 분석 (예: "뱅킹IS팀")
+    team_filter: str | None = None  # 특정 팀만 분석 (쉼표 구분 다중 입력 가능, 예: "뱅킹IS팀,뱅킹통신보안팀")
     exclude_role: str | None = "교대제"  # 제외할 직무
 
     # 알림
@@ -40,6 +40,13 @@ class ShifteeSettings(BaseSettings):
     def login_url(self) -> str:
         base = self.base_url.rstrip("/")
         return f"{base}/ko/accounts/login"
+
+    @property
+    def team_filter_list(self) -> list[str]:
+        """쉼표로 구분된 팀 필터를 리스트로 반환. 비어있으면 빈 리스트."""
+        if not self.team_filter:
+            return []
+        return [t.strip() for t in self.team_filter.split(",") if t.strip()]
 
 
 __all__ = ["ShifteeSettings"]
