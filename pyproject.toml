@@ -27,10 +27,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+build = ["pyinstaller>=6.0"]
+
 lambda = ["boto3>=1.28", "awslambdaric>=2.0"]
 
 [project.scripts]
 shiftee-analyze = "shiftee.cli:main"
+shiftee-gui = "shiftee.gui_main:main"
 
 [tool.uv]
 package = true

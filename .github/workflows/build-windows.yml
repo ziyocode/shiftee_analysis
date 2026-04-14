@@ -1,0 +1,75 @@
+name: Build Windows Executable
+
+on:
+  workflow_dispatch:  # 수동 실행
+  push:
+    tags:
+      - 'v*'  # v1.0.0 같은 태그 푸시 시 자동 빌드
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install uv
+      shell: powershell
+      run: |
+        irm https://astral.sh/uv/install.ps1 | iex
+
+    - name: Install dependencies
+      shell: cmd
+      run: |
+        uv sync --extra build
+
+    - name: Install Playwright browsers
+      shell: cmd
+      run: |
+        uv run playwright install chromium
+
+    - name: Build with PyInstaller
+      shell: cmd
+      run: |
+        uv run pyinstaller shiftee.spec
+
+    - name: Copy Playwright browsers
+      shell: powershell
+      run: |
+        $playwrightPath = "$env:USERPROFILE\AppData\Local\ms-playwright"
+        if (Test-Path $playwrightPath) {
+          Copy-Item -Recurse -Force $playwrightPath dist\ShifteeAnalyzer\ms-playwright
+        }
+
+    - name: Copy README
+      shell: cmd
+      run: |
+        if exist DISTRIBUTION_README.md copy DISTRIBUTION_README.md dist\ShifteeAnalyzer\README.txt
+
+    - name: Create ZIP
+      shell: powershell
+      run: |
+        Compress-Archive -Path dist\ShifteeAnalyzer\* -DestinationPath ShifteeAnalyzer-Windows.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ShifteeAnalyzer-Windows
+        path: ShifteeAnalyzer-Windows.zip
+        retention-days: 30
+
+    - name: Create Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ShifteeAnalyzer-Windows.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -19,6 +19,7 @@ import openpyxl
 from .settings import ShifteeSettings
 from .login import launch_browser, login
 from .attendance import download_report_current_month, download_payroll_current_month
+from .html_report import generate_html_report
 
 # kakao_send 모듈 (src/kakao_send)
 try:
@@ -459,6 +460,10 @@ def main():
         args.output.parent.mkdir(parents=True, exist_ok=True)
         if args.output.suffix.lower() == ".xlsx":
             save_to_excel(df, args.output, start_date, end_date)
+
+            # HTML 보고서도 함께 생성
+            html_output = args.output.with_suffix('.html')
+            generate_html_report(df, html_output, start_date, end_date)
         else:
             df.to_csv(args.output, index=False, encoding="utf-8-sig")
             print(f"💾 CSV 저장 완료: {args.output}\n")
