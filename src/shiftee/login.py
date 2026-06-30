@@ -89,8 +89,16 @@ async def launch_browser(settings: ShifteeSettings) -> AsyncIterator[tuple[Brows
         # 자동화 감지 완화 플래그 (헤드리스 봇 감지 우회)
         launch_args.append("--disable-blink-features=AutomationControlled")
 
-        browser = await p.chromium.launch(headless=settings.headless, args=launch_args)
-        logger.debug("Browser launched successfully")
+        # 헤드리스일 때는 '신규 헤드리스 모드'(--headless=new)를 사용한다.
+        # 구형 헤드리스는 UA에 'HeadlessChrome'이 박히고 렌더링 경로도 달라 Shiftee
+        # 신규 /app SPA가 봇으로 감지해 부팅을 거부한다(브라우저 창 표시 모드에서만
+        # 동작하던 원인). 신규 헤드리스는 실제 Chrome과 거의 동일하게 동작하므로
+        # 창 없이도 SPA가 정상 부팅한다. Playwright가 구형 --headless를 붙이지 않도록
+        # headless=False로 띄우고 --headless=new를 직접 전달한다.
+        if settings.headless:
+            launch_args.append("--headless=new")
+        browser = await p.chromium.launch(headless=False, args=launch_args)
+        logger.debug(f"Browser launched (new-headless={settings.headless})")
 
         # 실제 데스크톱 브라우저처럼 보이는 컨텍스트 (신규 /app SPA 부팅 차단 방지)
         context = await browser.new_context(
