@@ -270,12 +270,25 @@ async def download_payroll_current_month(
         await date_input.press("Enter")
         await page.wait_for_timeout(200)
 
-        # 직원들: open dropdown and select all
+        # 직원들: 드롭다운을 열어 전체 선택.
+        # 주의: '모두 선택'은 토글이며, 신규 /app SPA에서는 모달 진입 시 직원이 이미
+        # 전체 선택돼 있다(예: "280 선택됨"). 무조건 한 번만 클릭하면 전체가 '해제'되어
+        # 직원 0명 → 폼이 ng-invalid → 다운로드 버튼이 비활성인 채로 멈춘다.
+        # 클릭 후 라벨이 '선택안됨'이면 다시 눌러 전체 선택 상태를 보장한다.
         logger.debug("Selecting all employees")
         employee_dropdown = modal.locator("sft-multi-select-employees .dropdown-toggle").first
         await employee_dropdown.click()
         select_all = modal.locator("sft-multi-select-employees .sft-dropdown-item-select-all").first
+        await select_all.wait_for(state="visible", timeout=settings.timeout)
+        await page.wait_for_timeout(300)  # 가상 스크롤 목록 렌더 안정화
+        employee_label = modal.locator("sft-multi-select-employees .sft-btn-name").first
         await select_all.click()
+        await page.wait_for_timeout(400)
+        if (await employee_label.inner_text()).strip() == "선택안됨":
+            logger.debug("Select-all toggled off; clicking again to select all employees")
+            await select_all.click()
+            await page.wait_for_timeout(400)
+        logger.debug(f"Employees selected: {(await employee_label.inner_text()).strip()}")
         await employee_dropdown.click()
 
         # 실급여정산 checkboxes

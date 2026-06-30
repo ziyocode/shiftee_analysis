@@ -12,6 +12,30 @@ from .settings import ShifteeSettings
 from .attendance import download_payroll_current_month, download_report_current_month
 
 
+# 헤드리스 봇 감지 우회용 스텔스 설정.
+# Shiftee 신규 /app SPA는 자동화(navigator.webdriver 등)를 감지하면 헤드리스에서
+# 부팅을 거부하고 로딩 스피너에서 멈춘다. 실제 데스크톱 Chrome처럼 위장한다.
+_STEALTH_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+)
+
+_STEALTH_INIT_JS = """
+Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR','ko','en-US','en']});
+Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
+window.chrome = window.chrome || { runtime: {} };
+const _origQuery = navigator.permissions && navigator.permissions.query;
+if (_origQuery) {
+  navigator.permissions.query = (p) => (
+    p && p.name === 'notifications'
+      ? Promise.resolve({ state: Notification.permission })
+      : _origQuery(p)
+  );
+}
+"""
+
+
 def setup_logging(settings: ShifteeSettings) -> logging.Logger:
     """Setup logging configuration based on settings."""
     logger = logging.getLogger("shiftee")
@@ -62,10 +86,22 @@ async def launch_browser(settings: ShifteeSettings) -> AsyncIterator[tuple[Brows
                 "--disable-gpu",
                 "--single-process",
             ]
+        # 자동화 감지 완화 플래그 (헤드리스 봇 감지 우회)
+        launch_args.append("--disable-blink-features=AutomationControlled")
+
         browser = await p.chromium.launch(headless=settings.headless, args=launch_args)
         logger.debug("Browser launched successfully")
 
-        context = await browser.new_context()
+        # 실제 데스크톱 브라우저처럼 보이는 컨텍스트 (신규 /app SPA 부팅 차단 방지)
+        context = await browser.new_context(
+            user_agent=_STEALTH_USER_AGENT,
+            locale="ko-KR",
+            timezone_id="Asia/Seoul",
+            viewport={"width": 1920, "height": 1080},
+        )
+        # navigator.webdriver 등 자동화 흔적 마스킹 (모든 신규 문서에 주입)
+        await context.add_init_script(_STEALTH_INIT_JS)
+
         # Apply timeout settings for macOS automation compatibility
         context.set_default_timeout(settings.timeout)
         context.set_default_navigation_timeout(settings.navigation_timeout)
