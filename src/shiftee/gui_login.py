@@ -29,11 +29,11 @@ class LoginDialog:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Shiftee 로그인")
-        self.root.geometry("500x620")
+        self.root.geometry("500x680")
         self.root.resizable(False, False)
 
-        # 결과
-        self.result: Optional[Tuple[str, str, list[str]]] = None
+        # 결과 (아이디, 비밀번호, 팀필터, 브라우저표시여부)
+        self.result: Optional[Tuple[str, str, list[str], bool]] = None
 
         # 설정 파일 경로
         self.config_file = Path("shiftee_config.json")
@@ -158,9 +158,18 @@ class LoginDialog:
         )
         save_check.grid(row=7, column=0, columnspan=2, pady=(5, 5))
 
+        # 브라우저 표시 체크박스 (문제 해결용: 헤드리스에서 로그인 후 화면이 안 뜰 때)
+        self.show_browser_var = tk.BooleanVar(value=False)
+        show_browser_check = ttk.Checkbutton(
+            main_frame,
+            text="브라우저 창 표시 (다운로드가 멈추거나 실패할 때 체크)",
+            variable=self.show_browser_var
+        )
+        show_browser_check.grid(row=8, column=0, columnspan=2, pady=(0, 5))
+
         # 버튼 프레임
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=(10, 0))
+        button_frame.grid(row=9, column=0, columnspan=2, pady=(10, 0))
 
         login_btn = ttk.Button(button_frame, text="로그인", command=self._on_login, width=12)
         login_btn.grid(row=0, column=0, padx=5)
@@ -243,7 +252,8 @@ class LoginDialog:
         if self.save_var.get():
             self._save_credentials(user_id, selected_teams)
 
-        self.result = (user_id, password, selected_teams)
+        show_browser = self.show_browser_var.get()
+        self.result = (user_id, password, selected_teams, show_browser)
         self.root.quit()
         self.root.destroy()
 
@@ -252,21 +262,21 @@ class LoginDialog:
         self.root.quit()
         self.root.destroy()
 
-    def show(self) -> Optional[Tuple[str, str, list[str]]]:
+    def show(self) -> Optional[Tuple[str, str, list[str], bool]]:
         """대화상자를 표시하고 결과 반환.
 
         Returns:
-            (아이디, 비밀번호, 팀필터리스트) 튜플 또는 None (취소 시)
+            (아이디, 비밀번호, 팀필터리스트, 브라우저표시여부) 튜플 또는 None (취소 시)
         """
         self.root.mainloop()
         return self.result
 
 
-def get_credentials() -> Optional[Tuple[str, str, list[str]]]:
+def get_credentials() -> Optional[Tuple[str, str, list[str], bool]]:
     """GUI를 통해 로그인 정보를 입력받습니다.
 
     Returns:
-        (user_id, password, team_filter_list) 또는 None (취소 시)
+        (user_id, password, team_filter_list, show_browser) 또는 None (취소 시)
     """
     dialog = LoginDialog()
     return dialog.show()
@@ -276,8 +286,9 @@ if __name__ == "__main__":
     # 테스트용
     result = get_credentials()
     if result:
-        user_id, password, teams = result
+        user_id, password, teams, show_browser = result
         print(f"ID: {user_id}")
+        print(f"Show browser: {show_browser}")
         print(f"Password: {'*' * len(password)}")
         print(f"Teams: {teams}")
     else:

@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +41,23 @@ class ShifteeSettings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @field_validator("headless", "debug_screenshots", "debug_logs", mode="before")
+    @classmethod
+    def _lenient_bool(cls, v):
+        """손으로 만든 .env의 불리언 값에 섞인 잡문자를 허용한다.
+
+        Windows 메모장 등으로 .env를 만들면 값 끝에 보이지 않는 제어문자나
+        잡문자가 붙어 'false\\r' / 'false┘' 처럼 들어와 bool 파싱이 깨진다.
+        앞부분의 true/false 토큰만 보고 안전하게 해석한다.
+        """
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s.startswith(("true", "1", "yes", "y", "on")):
+                return True
+            if s.startswith(("false", "0", "no", "n", "off")):
+                return False
+        return v
 
     @property
     def login_url(self) -> str:

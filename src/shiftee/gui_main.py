@@ -52,13 +52,18 @@ def run_gui_mode():
         print("로그인이 취소되었습니다.")
         return 1
 
-    user_id, password, team_filter_list = credentials
+    user_id, password, team_filter_list, show_browser = credentials
 
     # 임시 환경변수 설정
     os.environ['SHIFTEE_ID'] = user_id
     os.environ['SHIFTEE_PASSWORD'] = password
     if team_filter_list:
         os.environ['SHIFTEE_TEAM_FILTER'] = ','.join(team_filter_list)
+    # 헤드리스 토글: 체크 시 브라우저 창을 띄운다(봇 감지 우회/문제 진단).
+    # 깨끗한 값을 환경변수로 직접 넣어 .env의 잡문자 이슈와 무관하게 동작한다.
+    os.environ['SHIFTEE_HEADLESS'] = 'false' if show_browser else 'true'
+    if show_browser:
+        print("🖥️  브라우저 창 표시 모드 (headless 끔)\n")
 
     # 날짜 설정 (이번 달 1일 ~ 어제)
     now = datetime.now()
