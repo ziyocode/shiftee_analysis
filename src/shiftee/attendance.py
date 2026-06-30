@@ -1,12 +1,33 @@
 """Download attendance reports."""
 
 import logging
+import re
 from datetime import date, datetime
 from pathlib import Path
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .settings import ShifteeSettings
+
+
+async def _save_failure_artifacts(page: Page, label: str) -> None:
+    """실패 시 스크린샷+HTML을 logs/screenshots에 저장한다.
+
+    원격 .exe 사용자가 원인을 보내올 수 있도록 debug 설정과 무관하게 항상 남긴다.
+    아티팩트 저장 자체가 실패해도 원래 예외를 가리지 않도록 모두 무시한다.
+    """
+    logger = logging.getLogger("shiftee")
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_dir = Path("logs/screenshots")
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        await page.screenshot(path=f"logs/screenshots/{timestamp}_ERROR_{label}.png")
+        html_content = await page.content()
+        with open(f"logs/screenshots/{timestamp}_ERROR_{label}.html", "w", encoding="utf-8") as f:
+            f.write(html_content)
+        logger.debug(f"Error artifacts saved: {timestamp}_ERROR_{label}.png/.html")
+    except Exception:  # noqa: BLE001
+        logger.debug("Failed to save error artifacts (ignored)")
 
 
 async def download_report_current_month(
@@ -33,31 +54,45 @@ async def download_report_current_month(
             await page.goto(settings.report_url, wait_until="domcontentloaded")
             logger.debug("Report page loaded via direct URL")
         else:
-            # Try to find report link by href pattern (works regardless of company ID or sidebar state)
-            logger.debug("Finding '리포트' link by href pattern")
-            report_link = page.locator("a[href*='/manager/report']").first
-            link_count = await report_link.count()
-
-            if link_count == 0:
-                logger.debug("href pattern not found, trying text-based locator")
-                report_link = page.get_by_role("link", name="리포트")
-                if await report_link.count() == 0:
-                    report_link = page.locator("text=리포트").first
+            # 신규 /app SPA는 로그인 직후 networkidle가 떠도 사이드바(nav)를 클라이언트에서
+            # 뒤늦게 렌더한다. nav가 그려지기 전에 즉시 조회하면 0건이 되어, 이전에는
+            # 'text=리포트' 폴백이 타임아웃으로 실패했다(v1.0.1 Windows 증상).
+            # 먼저 매니저 nav 링크가 DOM에 붙을 때까지 기다려 레이스를 제거한다.
+            logger.debug("Waiting for SPA navigation to render after login")
+            nav_link = page.locator("a[href*='/manager/']").first
+            try:
+                await nav_link.wait_for(state="attached", timeout=max(settings.timeout, 90000))
+            except PlaywrightTimeoutError as exc:
+                raise RuntimeError(
+                    "로그인 후 메뉴(사이드바)가 렌더되지 않았습니다. 로그인 성공 여부와 "
+                    "네트워크 상태를 확인하세요(신규 /app 화면 로딩 실패 가능)."
+                ) from exc
 
             if settings.debug_screenshots:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 await page.screenshot(path=f"logs/screenshots/{timestamp}_report_01_before_link_click.png")
                 logger.debug(f"Screenshot saved: {timestamp}_report_01_before_link_click.png")
 
-            # Get the href and navigate directly to avoid sidebar collapsed state issues
-            href = await report_link.get_attribute("href")
-            if href:
-                report_url = href if href.startswith("http") else f"https://shiftee.io{href}"
-                logger.debug(f"Navigating directly to report URL: {report_url}")
-                await page.goto(report_url, wait_until="domcontentloaded")
-            else:
-                logger.debug("Clicking '리포트' link")
-                await report_link.click()
+            # 리포트 URL 확보: 1) 리포트 링크의 href, 2) 현재 URL/다른 nav 링크의 회사 ID로 구성.
+            # 링크 텍스트 매칭에 의존하지 않아 사이드바 접힘/렌더 상태와 무관하게 동작한다.
+            logger.debug("Resolving report page URL")
+            report_link = page.locator("a[href*='/manager/report']").first
+            href = await report_link.get_attribute("href") if await report_link.count() else None
+            if not href:
+                match = re.search(r"/companies/(\d+)/", page.url)
+                if not match:
+                    nav_href = await nav_link.get_attribute("href") or ""
+                    match = re.search(r"/companies/(\d+)/", nav_href)
+                if match:
+                    href = f"/app/companies/{match.group(1)}/manager/report"
+            if not href:
+                raise RuntimeError(
+                    "리포트 페이지 URL을 찾지 못했습니다(사이드바에 '리포트' 메뉴 없음). "
+                    "계정 권한을 확인하세요."
+                )
+            report_url = href if href.startswith("http") else f"https://shiftee.io{href}"
+            logger.debug(f"Navigating to report URL: {report_url}")
+            await page.goto(report_url, wait_until="domcontentloaded")
             await page.wait_for_load_state("networkidle")
             logger.debug("Reports page loaded")
 
@@ -161,18 +196,8 @@ async def download_report_current_month(
 
     except Exception as e:
         logger.error(f"Report download failed: {type(e).__name__}: {e}")
-        if settings.debug_screenshots:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_dir = Path("logs/screenshots")
-            screenshot_dir.mkdir(parents=True, exist_ok=True)
-            await page.screenshot(path=f"logs/screenshots/{timestamp}_ERROR_report.png")
-            logger.debug(f"Error screenshot saved: {timestamp}_ERROR_report.png")
-
-            # Save HTML content for analysis
-            html_content = await page.content()
-            with open(f"logs/screenshots/{timestamp}_ERROR_report.html", "w", encoding="utf-8") as f:
-                f.write(html_content)
-            logger.debug(f"HTML snapshot saved: {timestamp}_ERROR_report.html")
+        # 실패 원인 분석을 위해 항상 스크린샷/HTML을 남긴다(.exe 배포 원격 디버깅용).
+        await _save_failure_artifacts(page, "report")
         raise
 
 
@@ -331,16 +356,6 @@ async def download_payroll_current_month(
 
     except Exception as e:
         logger.error(f"Payroll download failed: {type(e).__name__}: {e}")
-        if settings.debug_screenshots:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_dir = Path("logs/screenshots")
-            screenshot_dir.mkdir(parents=True, exist_ok=True)
-            await page.screenshot(path=f"logs/screenshots/{timestamp}_ERROR_payroll.png")
-            logger.debug(f"Error screenshot saved: {timestamp}_ERROR_payroll.png")
-
-            # Save HTML content for analysis
-            html_content = await page.content()
-            with open(f"logs/screenshots/{timestamp}_ERROR_payroll.html", "w", encoding="utf-8") as f:
-                f.write(html_content)
-            logger.debug(f"HTML snapshot saved: {timestamp}_ERROR_payroll.html")
+        # 실패 원인 분석을 위해 항상 스크린샷/HTML을 남긴다(.exe 배포 원격 디버깅용).
+        await _save_failure_artifacts(page, "payroll")
         raise

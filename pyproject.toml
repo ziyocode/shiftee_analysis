@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shiftee-analysis"
-version = "1.0.1"
+version = "1.0.2"
 description = "Shiftee 근무 데이터 분석 및 초과근로 적정성 판정 도구"
 readme = "README.md"
 requires-python = ">=3.10"
