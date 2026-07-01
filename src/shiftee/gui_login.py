@@ -29,7 +29,7 @@ class LoginDialog:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Shiftee 로그인")
-        self.root.geometry("500x620")
+        self.root.geometry("500x700")
         self.root.resizable(False, False)
 
         # 결과
@@ -91,28 +91,12 @@ class LoginDialog:
         )
         team_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
 
-        # 팀 선택 프레임 (스크롤 가능)
-        team_frame_container = ttk.Frame(main_frame)
-        team_frame_container.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-
-        # Canvas와 Scrollbar
-        canvas = tk.Canvas(team_frame_container, height=200, highlightthickness=1, highlightbackground="#ccc")
-        scrollbar = ttk.Scrollbar(team_frame_container, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # 팀 선택 프레임 (스크롤 없음 - 한 화면에 전체 표시)
+        team_frame_container = tk.Frame(main_frame, highlightthickness=1, highlightbackground="#ccc")
+        team_frame_container.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # 전체 선택/해제 버튼
-        select_all_frame = ttk.Frame(scrollable_frame)
+        select_all_frame = ttk.Frame(team_frame_container)
         select_all_frame.pack(fill=tk.X, padx=10, pady=(5, 10))
 
         ttk.Button(
@@ -135,7 +119,7 @@ class LoginDialog:
             self.team_vars[team] = var
 
             cb = ttk.Checkbutton(
-                scrollable_frame,
+                team_frame_container,
                 text=team,
                 variable=var
             )
