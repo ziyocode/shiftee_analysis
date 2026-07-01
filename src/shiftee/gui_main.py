@@ -26,14 +26,17 @@ from shiftee.cli import (
     download_shiftee_data,
     load_shiftee_data1,
     load_shiftee_data2,
+    load_shiftee_leave_data,
     calculate_basic_columns,
     calculate_g_column,
     calculate_h_column,
     calculate_i_j_l_columns,
     calculate_overtime_columns,
     calculate_legal_limits_and_risk,
+    calculate_remaining_compensatory_leave,
     print_summary,
     print_risk_employees,
+    print_remaining_leave,
     save_to_excel,
 )
 from shiftee.html_report import generate_html_report
@@ -78,7 +81,7 @@ def run_gui_mode():
 
         # 데이터 다운로드
         settings = ShifteeSettings()
-        data1_path, data2_path = asyncio.run(
+        data1_path, data2_path, leave_path = asyncio.run(
             download_shiftee_data(start_date, end_date, data_dir)
         )
 
@@ -126,13 +129,20 @@ def run_gui_mode():
         print_summary(df)
         print_risk_employees(df)
 
+        # 잔여 대체휴가 계산
+        leave_summary = None
+        if leave_path.exists():
+            df_leave = load_shiftee_leave_data(leave_path)
+            leave_summary = calculate_remaining_compensatory_leave(df1, df_leave)
+            print_remaining_leave(leave_summary)
+
         # Excel 저장
         print("\n💾 3️⃣  결과 저장 중...")
-        save_to_excel(df, output_path, start_date, end_date)
+        save_to_excel(df, output_path, start_date, end_date, leave_df=leave_summary)
 
         # HTML 보고서 생성
         html_path = output_path.with_suffix('.html')
-        generate_html_report(df, html_path, start_date, end_date)
+        generate_html_report(df, html_path, start_date, end_date, leave_df=leave_summary)
 
         print("\n" + "=" * 80)
         print("✅ 분석 완료!")

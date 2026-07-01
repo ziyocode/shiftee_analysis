@@ -201,6 +201,96 @@ async def download_report_current_month(
         raise
 
 
+async def download_leave_accrual_current(
+    page: Page,
+    settings: ShifteeSettings,
+    output_dir: Path | None = None,
+) -> Path:
+    """
+    From the left nav, open 휴가 -> 휴가 발생 -> 다운로드 -> 휴가 발생 -> 다운로드 and save the file.
+
+    기간(조회 기간)은 건드리지 않는다. 모달 기본값은 '올해 1.1 ~ 12.31'인데,
+    대체휴가 등 발생분은 만료 시점까지 몇 개월 내로 짧게 순환돼 실사용 데이터에서
+    작년 이전 발생 중 '발생됨(미만료)' 건이 없음을 확인했다 (전체 기간 다운로드와 비교 검증).
+    """
+    logger = logging.getLogger("shiftee")
+    logger.info("Starting leave accrual download")
+
+    output_dir = output_dir or Path("data")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        if settings.leave_accrual_url:
+            nav_url = settings.leave_accrual_url
+        else:
+            leave_link = page.locator("a[href*='/manager/leave-accruals']").first
+            href = await leave_link.get_attribute("href")
+            nav_url = href if href and href.startswith("http") else f"https://shiftee.io{href}"
+        logger.debug(f"Navigating to leave accrual URL: {nav_url}")
+        await page.goto(nav_url, wait_until="domcontentloaded")
+
+        logger.debug("Waiting for page to be fully loaded")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        logger.debug("Page fully loaded")
+
+        if settings.debug_screenshots:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            await page.screenshot(path=f"logs/screenshots/{timestamp}_leave_01_page_loaded.png")
+            logger.debug(f"Screenshot saved: {timestamp}_leave_01_page_loaded.png")
+
+        logger.debug("Waiting for download toggle button to be visible")
+        toggle = page.locator('button:has-text("다운로드")').first
+        await toggle.wait_for(state="visible", timeout=settings.timeout)
+        await toggle.click()
+        await page.wait_for_timeout(200)
+
+        logger.debug("Clicking '휴가 발생' 다운로드 menu item")
+        # 사이드바에도 같은 텍스트의 링크(휴가 발생 설정 페이지)가 있어 드롭다운 컨테이너로 한정한다.
+        leave_item = page.locator(".sft-dropdown-container li.dropdown-item", has_text="휴가 발생").first
+        await leave_item.click(force=True)
+
+        logger.debug("Waiting for network idle after menu item click")
+        await page.wait_for_load_state("networkidle", timeout=settings.timeout)
+        await page.wait_for_timeout(1000)
+
+        logger.debug("Waiting for export modal to be attached to DOM")
+        modal = page.locator("sft-basic-export-modal").first
+        await modal.wait_for(state="attached", timeout=settings.timeout)
+        await modal.wait_for(state="visible", timeout=settings.timeout)
+        logger.debug("Leave accrual modal visible")
+
+        if settings.debug_screenshots:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            await page.screenshot(path=f"logs/screenshots/{timestamp}_leave_02_modal_visible.png")
+            logger.debug(f"Screenshot saved: {timestamp}_leave_02_modal_visible.png")
+
+        logger.debug("Clicking final download button in modal")
+        confirm_download = modal.locator('button:has-text("다운로드")').last
+        try:
+            async with page.expect_download(timeout=max(settings.timeout, 120000)) as dl_info:
+                await confirm_download.click(force=True)
+            download = await dl_info.value
+            logger.debug("Download started successfully")
+        except PlaywrightTimeoutError as exc:
+            timeout_seconds = settings.timeout / 1000
+            logger.error(f"Download timeout after {timeout_seconds}s")
+            raise RuntimeError(
+                f"Download did not start within {timeout_seconds}s after confirming in the 휴가 발생 popup. "
+                "Check that the modal rendered correctly and that the account has export permissions."
+            ) from exc
+
+        filename = "shiftee_leave.xlsx"
+        destination = output_dir / filename
+        await download.save_as(str(destination))
+        logger.info(f"Leave accrual saved to: {destination}")
+        return destination
+
+    except Exception as e:
+        logger.error(f"Leave accrual download failed: {type(e).__name__}: {e}")
+        await _save_failure_artifacts(page, "leave")
+        raise
+
+
 def _current_month_range_today() -> str:
     today = date.today()
     start = today.replace(day=1)

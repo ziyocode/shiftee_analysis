@@ -170,7 +170,13 @@ tbody tr:hover td { background: #eaf6ff; }
 """
 
 
-def generate_html_report(df: pd.DataFrame, output_path: Path, start_date: datetime, end_date: datetime):
+def generate_html_report(
+    df: pd.DataFrame,
+    output_path: Path,
+    start_date: datetime,
+    end_date: datetime,
+    leave_df: pd.DataFrame | None = None,
+):
     """분석 결과를 HTML 보고서로 생성.
 
     Args:
@@ -178,6 +184,8 @@ def generate_html_report(df: pd.DataFrame, output_path: Path, start_date: dateti
         output_path: HTML 파일 저장 경로
         start_date: 분석 시작 날짜
         end_date: 분석 종료 날짜
+        leave_df: 팀원별 잔여 대체휴가 DataFrame (직원/본조직/발생일수/사용일수/잔여일수).
+            리포트에는 잔여일수 > 0인 직원만 표시된다.
     """
     # 통계 계산
     total = len(df)
@@ -368,6 +376,41 @@ def generate_html_report(df: pd.DataFrame, output_path: Path, start_date: dateti
                             <td class="num" style="color: var(--warn);">{int(row["위험"] - row["법규초과"])}</td>
                             <td class="num" style="color: var(--danger);">{int(row["법규초과"])}</td>
                             <td class="num"><strong>{risk_rate:.1f}%</strong></td>
+                        </tr>
+"""
+        html += """                    </tbody>
+                </table>
+            </div>
+        </section>
+"""
+
+    # ── 팀원별 잔여 대체휴가 (잔여 보유자만 표시) ──
+    if leave_df is not None:
+        leave_df = leave_df[leave_df["잔여일수"] > 0]
+    if leave_df is not None and not leave_df.empty:
+        html += f"""
+        <section class="panel">
+            <h2>🏖️ 잔여 대체휴가 보유 팀원 ({len(leave_df)}명)</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>직원</th>
+                            <th>본조직</th>
+                            <th class="num">발생(일)</th>
+                            <th class="num">사용(일)</th>
+                            <th class="num">잔여(일)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+"""
+        for _, row in leave_df.iterrows():
+            html += f"""                        <tr>
+                            <td><strong>{row["직원"]}</strong></td>
+                            <td>{row["본조직"]}</td>
+                            <td class="num">{row["발생일수"]:.1f}</td>
+                            <td class="num">{row["사용일수"]:.1f}</td>
+                            <td class="num"><strong>{row["잔여일수"]:.1f}</strong></td>
                         </tr>
 """
         html += """                    </tbody>

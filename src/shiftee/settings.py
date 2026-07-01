@@ -12,6 +12,7 @@ class ShifteeSettings(BaseSettings):
     calendar_url: str | None = None
     report_url: str | None = None
     attendance_list_url: str | None = None
+    leave_accrual_url: str | None = None
 
     # 분석 필터
     team_filter: str | None = None  # 특정 팀만 분석 (쉼표 구분 다중 입력 가능, 예: "뱅킹IS팀,뱅킹통신보안팀")

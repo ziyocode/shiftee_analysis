@@ -34,16 +34,18 @@ The application will:
 1. Log in to Shiftee.io using credentials from settings
 2. Download the current month's attendance report (리포트)
 3. Download the current month's payroll calculation (실급여정산) from 출퇴근기록 > 목록형
-4. Save files to `data/` directory with timestamped filenames
+4. Download 휴가 > 휴가 발생 (leave accrual export) to compute remaining 대체휴가 (compensatory leave) balances
+5. Save files to `data/` directory with timestamped filenames
 
 ## Architecture
 
 ### Module Organization
 - **`src/shiftee/settings.py`**: Configuration management using pydantic-settings; loads from `.env` or `config/settings.toml` with `SHIFTEE_` prefix
 - **`src/shiftee/login.py`**: Browser launch and authentication flow; provides `launch_browser()` context manager and `login()` function
-- **`src/shiftee/attendance.py`**: Report download logic with two main functions:
+- **`src/shiftee/attendance.py`**: Report download logic with three main functions:
   - `download_report_current_month()`: Downloads 리포트 for current month
   - `download_payroll_current_month()`: Downloads 실급여정산 with both 근무일정/출퇴근기록 options
+  - `download_leave_accrual_current()`: Downloads 휴가 발생 (per-employee monthly leave accrual/usage), used to compute remaining 대체휴가 days. Each row is one monthly accrual batch with a 상태 of 발생됨(active)/만료됨(expired)/예정됨(future); summing 남은 휴가 일수 over 대체휴가 rows with 상태=='발생됨' reproduces the "남은 휴가 일수" total shown in Shiftee's 휴가 발생 screen
 - **`src/shiftee/__main__.py`**: CLI entrypoint that orchestrates login and downloads
 
 ### Selector Strategy
@@ -58,7 +60,7 @@ Settings support environment variables (`.env`) or TOML (`config/settings.toml`)
 - `SHIFTEE_PASSWORD`: Login password (required)
 - `SHIFTEE_HEADLESS`: Run browser in headless mode (default: true)
 - `SHIFTEE_BASE_URL`: Shiftee base URL (default: "https://shiftee.io")
-- `SHIFTEE_CALENDAR_URL`, `SHIFTEE_REPORT_URL`, `SHIFTEE_ATTENDANCE_LIST_URL`: Direct URLs for specific pages
+- `SHIFTEE_CALENDAR_URL`, `SHIFTEE_REPORT_URL`, `SHIFTEE_ATTENDANCE_LIST_URL`, `SHIFTEE_LEAVE_ACCRUAL_URL`: Direct URLs for specific pages
 
 ### Output Management
 Downloaded files are saved to `data/` with server-provided filenames (e.g., `SHIFTEE-REALTIME-REPORT-20251201-20251231.xlsx`). The `data/` directory is created automatically but should be gitignored for credential safety.

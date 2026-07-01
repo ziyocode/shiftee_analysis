@@ -18,7 +18,11 @@ import openpyxl
 # shiftee 패키지 내부 모듈
 from .settings import ShifteeSettings
 from .login import launch_browser, login
-from .attendance import download_report_current_month, download_payroll_current_month
+from .attendance import (
+    download_report_current_month,
+    download_payroll_current_month,
+    download_leave_accrual_current,
+)
 from .html_report import generate_html_report
 
 # kakao_send 모듈 (src/kakao_send)
@@ -66,7 +70,11 @@ async def download_shiftee_data(start_date: datetime, end_date: datetime, output
         )
         print(f"   ✅ 저장: {data2_path}\n")
 
-        return data1_path, data2_path
+        print("🏖️  3. 휴가 발생(대체휴가 등) 다운로드 중...")
+        leave_path = await download_leave_accrual_current(page, settings, output_dir)
+        print(f"   ✅ 저장: {leave_path}\n")
+
+        return data1_path, data2_path, leave_path
 
 
 def find_date_range_sheet(wb: openpyxl.Workbook) -> str:
@@ -132,6 +140,80 @@ def load_shiftee_data2(file_path: Path) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=headers)
     print(f"   📊 데이터: {len(df)}행 × {len(df.columns)}열\n")
     return df
+
+
+def load_shiftee_leave_data(file_path: Path) -> pd.DataFrame:
+    """shiftee_leave.xlsx (휴가 발생) 로드. data1과 동일한 시트/헤더 구조."""
+    print(f"📂 {file_path.name} 로드 중...")
+
+    wb = openpyxl.load_workbook(file_path, data_only=True)
+    sheet_name = find_date_range_sheet(wb)
+    print(f"   ✅ 시트 발견: {sheet_name}")
+
+    sheet = wb[sheet_name]
+    headers = []
+    for col_idx in range(1, sheet.max_column + 1):
+        header = sheet.cell(1, col_idx).value
+        headers.append(header if header else f"Column_{col_idx}")
+
+    data = []
+    for row_idx in range(2, sheet.max_row + 1):
+        row_data = []
+        for col_idx in range(1, len(headers) + 1):
+            row_data.append(sheet.cell(row_idx, col_idx).value)
+        data.append(row_data)
+
+    wb.close()
+    df = pd.DataFrame(data, columns=headers)
+    print(f"   📊 데이터: {len(df)}행 × {len(df.columns)}열\n")
+    return df
+
+
+def calculate_remaining_compensatory_leave(
+    df1: pd.DataFrame, df_leave: pd.DataFrame
+) -> pd.DataFrame:
+    """팀원별 잔여 대체휴가 일수 계산.
+
+    '대체휴가' 그룹이면서 상태가 '발생됨'(미만료)인 발생분만 합산한다 — Shiftee
+    '휴가 발생' 화면의 남은 휴가 일수 합계와 일치함을 실데이터로 검증했다.
+    df1(이미 팀/직무 필터 적용됨)의 직원 명단 전체를 기준으로 남겨, 대체휴가
+    발생 이력이 없는 팀원도 0일로 표시되게 한다 (콘솔 출력 기준; Excel/HTML
+    리포트에는 잔여일수 > 0인 직원만 표시된다).
+    이름이 아닌 사원번호로 병합한다 — 실데이터에서 같은 팀에 동명이인(다른
+    사원번호)이 존재해 이름 기준 병합 시 한 명이 사라지는 것을 확인했다.
+    """
+    roster = df1[["사원번호", "직원", "본조직"]].drop_duplicates()
+
+    comp = df_leave[
+        df_leave["휴가 그룹"].astype(str).str.contains("대체휴가", na=False)
+        & (df_leave["상태"] == "발생됨")
+    ]
+    summary = comp.groupby("사원번호", as_index=False).agg(
+        발생일수=("발생 일수", "sum"),
+        사용일수=("사용한 휴가 일수", "sum"),
+        잔여일수=("남은 휴가 일수", "sum"),
+    )
+
+    result = roster.merge(summary, on="사원번호", how="left")
+    result[["발생일수", "사용일수", "잔여일수"]] = result[
+        ["발생일수", "사용일수", "잔여일수"]
+    ].fillna(0)
+    return result.drop(columns="사원번호").sort_values(
+        "잔여일수", ascending=False
+    ).reset_index(drop=True)
+
+
+def print_remaining_leave(df: pd.DataFrame):
+    """팀원별 잔여 대체휴가 목록 출력."""
+    print("\n" + "=" * 80 + "\n🏖️  팀원별 잔여 대체휴가\n" + "=" * 80)
+    if df.empty:
+        print("\n⚠️  대체휴가 데이터가 없습니다.\n")
+        return
+    display_df = df.rename(columns={
+        "발생일수": "발생(일)", "사용일수": "사용(일)", "잔여일수": "잔여(일)",
+    })
+    print(display_df.to_string(index=False))
+    print(f"\n합계: 발생 {df['발생일수'].sum():.1f}일 · 사용 {df['사용일수'].sum():.1f}일 · 잔여 {df['잔여일수'].sum():.1f}일\n")
 
 
 def calculate_basic_columns(df1: pd.DataFrame) -> pd.DataFrame:
@@ -331,7 +413,13 @@ def print_risk_employees(df: pd.DataFrame):
     print()
 
 
-def save_to_excel(df: pd.DataFrame, output_path: Path, start_date: datetime, end_date: datetime):
+def save_to_excel(
+    df: pd.DataFrame,
+    output_path: Path,
+    start_date: datetime,
+    end_date: datetime,
+    leave_df: pd.DataFrame | None = None,
+):
     """결과를 Excel 파일로 저장하고 스타일링 적용."""
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
@@ -383,6 +471,19 @@ def save_to_excel(df: pd.DataFrame, output_path: Path, start_date: datetime, end
         ws.freeze_panes = "B2"
         # 열 너비 자동 조정 생략 (기본 너비 사용)
 
+        # 리포트에는 잔여 대체휴가 보유자만 표시
+        if leave_df is not None:
+            leave_df = leave_df[leave_df["잔여일수"] > 0]
+        if leave_df is not None and not leave_df.empty:
+            leave_display_df = leave_df.rename(columns={
+                "발생일수": "발생(일)", "사용일수": "사용(일)", "잔여일수": "잔여(일)",
+            })
+            leave_display_df.to_excel(writer, sheet_name="대체휴가", index=False)
+            leave_ws = writer.sheets["대체휴가"]
+            for col_idx in range(1, len(leave_display_df.columns) + 1):
+                leave_ws.cell(row=1, column=col_idx).fill = header_fill
+            leave_ws.freeze_panes = "A2"
+
     print(f"📊 Excel 리포트 생성 완료: {output_path} ({output_path.stat().st_size / 1024:.1f} KB)\n")
 
 
@@ -391,6 +492,7 @@ def main():
     parser = argparse.ArgumentParser(description="Shiftee 근무 데이터 분석 및 적정성 판정")
     parser.add_argument("--data1", type=Path, default=Path("data/shiftee_data1.xlsx"))
     parser.add_argument("--data2", type=Path, default=Path("data/shiftee_data2.xlsx"))
+    parser.add_argument("--leave", type=Path, default=Path("data/shiftee_leave.xlsx"))
     parser.add_argument("--output", "-o", type=Path)
     parser.add_argument("--start", type=str)
     parser.add_argument("--end", type=str)
@@ -413,7 +515,9 @@ def main():
     try:
         if args.download:
             args.data1.parent.mkdir(parents=True, exist_ok=True)
-            args.data1, args.data2 = asyncio.run(download_shiftee_data(start_date, end_date, args.data1.parent))
+            args.data1, args.data2, args.leave = asyncio.run(
+                download_shiftee_data(start_date, end_date, args.data1.parent)
+            )
 
         print("=" * 80 + "\n🚀 Shiftee 적정성 위험 판정\n" + "=" * 80 + "\n")
 
@@ -456,14 +560,22 @@ def main():
         print_summary(df)
         print_risk_employees(df)
 
+        leave_summary = None
+        if args.leave.exists():
+            df_leave = load_shiftee_leave_data(args.leave)
+            leave_summary = calculate_remaining_compensatory_leave(df1, df_leave)
+            print_remaining_leave(leave_summary)
+        else:
+            print(f"⚠️  휴가 발생 데이터 없음({args.leave}) - 잔여 대체휴가 계산을 건너뜁니다.\n")
+
         print("💾 결과 저장 중...")
         args.output.parent.mkdir(parents=True, exist_ok=True)
         if args.output.suffix.lower() == ".xlsx":
-            save_to_excel(df, args.output, start_date, end_date)
+            save_to_excel(df, args.output, start_date, end_date, leave_df=leave_summary)
 
             # HTML 보고서도 함께 생성
             html_output = args.output.with_suffix('.html')
-            generate_html_report(df, html_output, start_date, end_date)
+            generate_html_report(df, html_output, start_date, end_date, leave_df=leave_summary)
         else:
             df.to_csv(args.output, index=False, encoding="utf-8-sig")
             print(f"💾 CSV 저장 완료: {args.output}\n")
